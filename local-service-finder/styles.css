@@ -11,11 +11,3 @@
 .auth-divider{display:flex;align-items:center;gap:12px;color:#87938b;font-size:11px;margin:2px 0 14px}
 .auth-divider:before,.auth-divider:after{content:"";height:1px;background:var(--line);flex:1}
 
-/* Google sign-in option below the standard email login */
-.google-login-area{margin-top:18px}
-.auth-divider{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px;margin:16px 0}
-.auth-divider:before,.auth-divider:after{content:"";height:1px;background:var(--line);flex:1}
-.google-login-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:11px;min-height:48px;padding:10px 16px;border:1px solid #d5ddd7;border-radius:10px;background:#fff;color:#26342c;font-weight:800;cursor:pointer;transition:background .15s,border-color .15s}
-.google-login-btn:hover{background:#f7faf7;border-color:#aebeb2}
-.google-login-btn:disabled{opacity:.5;cursor:not-allowed}
-.google-mark{width:23px;height:23px;display:grid;place-items:center;border-radius:50%;font:900 20px Arial,sans-serif;color:#4285f4;background:#fff}
