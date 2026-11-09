@@ -67,13 +67,27 @@ async function loadSession() {
   if (!db) return;
   const result = await db.auth.getSession();
   user = result.data.session ? result.data.session.user : null;
-  await loadProfile();
+  await ensureProfile();
 }
 async function loadProfile() {
   profile = null;
   if (!db || !user) return;
   const result = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
   if (!result.error) profile = result.data;
+}
+async function ensureProfile() {
+  if (!db || !user) return;
+  await loadProfile();
+  if (profile) return;
+  const meta = user.user_metadata || {};
+  const inserted = await db.from('profiles').insert({
+    id: user.id,
+    full_name: String(meta.full_name || ''),
+    phone: String(meta.phone || ''),
+    user_type: meta.user_type === 'provider' ? 'provider' : 'customer'
+  });
+  if (inserted.error) throw inserted.error;
+  await loadProfile();
 }
 function formField(label, name, type, placeholder, required, extra) {
   return '<div class="field"><label for="' + esc(name) + '">' + esc(label) + '</label><input id="' + esc(name) + '" name="' + esc(name) + '" type="' + (type || 'text') + '" placeholder="' + esc(placeholder || '') + '"' + (required ? ' required' : '') + ' ' + (extra || '') + '></div>';
@@ -240,19 +254,25 @@ async function dashboardPage() {
   if (!db) { app.innerHTML = backendNotice(); return; }
   await loadProfile();
   const isProvider = profile && profile.user_type === 'provider';
-  const received = await db.from('service_requests').select('id,status,message,created_at,contact_phone,area,district,service:services(title)').eq('provider_id',user.id).order('created_at',{ascending:false}).limit(30);
+  const received = await db.from('service_requests').select('id,status,message,created_at,area,district,service:services(title)').eq('provider_id',user.id).order('created_at',{ascending:false}).limit(30);
   const sent = await db.from('service_requests').select('id,status,message,created_at,area,district,service:services(title)').eq('customer_id',user.id).order('created_at',{ascending:false}).limit(30);
   const myServices = isProvider ? await db.from('services').select('id,title,status').eq('provider_id',user.id).order('created_at',{ascending:false}) : {data:[]};
   const pp = isProvider ? await db.from('provider_profiles').select('approval_status,business_name').eq('user_id',user.id).maybeSingle() : {data:null};
   const requests = isProvider ? (received.data || []) : (sent.data || []);
   const services = myServices.data || [];
-  const rows = requests.length ? '<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>এলাকা</th><th>অবস্থা</th><th>তারিখ</th>'+(isProvider?'<th>গ্রাহকের নম্বর</th><th>কাজ</th>':'<th>যোগাযোগ</th>')+'</tr></thead><tbody>'+requests.map(r=>'<tr><td>'+esc(r.service && r.service.title || 'সেবা')+'</td><td>'+esc(r.area || '-')+'</td><td><span class="status '+esc(r.status)+'">'+esc(statusLabels[r.status] || r.status)+'</span></td><td>'+new Date(r.created_at).toLocaleDateString('bn-BD')+'</td>'+(isProvider?'<td>'+esc(r.contact_phone || '-')+'</td><td>'+(r.status==='pending'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="accepted">গ্রহণ</button> <button class="btn btn-small btn-outline" data-request="'+esc(r.id)+'" data-next="declined">না</button>':r.status==='accepted'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="completed">সম্পন্ন</button>':'—')+'</td>':'<td>'+(r.status==='accepted'?'<button class="btn btn-small" data-contact="'+esc(r.id)+'">নম্বর দেখুন</button>':'অনুমোদনের পর নম্বর পাওয়া যাবে')+'</td>')+'</tr>').join('')+'</tbody></table></div>' : emptyState('এখনো কোনো কাজের অনুরোধ নেই',isProvider?'কেউ কাজের অনুরোধ পাঠালে এখানে দেখতে পাবেন।':'সেবা খুঁজে কাজের অনুরোধ পাঠালে এখানে দেখা যাবে।','📬');
+  const rows = requests.length ? '<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>এলাকা</th><th>অবস্থা</th><th>তারিখ</th>'+(isProvider?'<th>গ্রাহকের নম্বর</th><th>কাজ</th>':'<th>যোগাযোগ</th>')+'</tr></thead><tbody>'+requests.map(r=>'<tr><td>'+esc(r.service && r.service.title || 'সেবা')+'</td><td>'+esc(r.area || '-')+'</td><td><span class="status '+esc(r.status)+'">'+esc(statusLabels[r.status] || r.status)+'</span></td><td>'+new Date(r.created_at).toLocaleDateString('bn-BD')+'</td>'+(isProvider?'<td>'+(r.status==='accepted'||r.status==='completed'?'<button class="btn btn-small" data-customer-contact="'+esc(r.id)+'">নম্বর দেখুন</button>':'গ্রহণের পর নম্বর পাওয়া যাবে')+'</td><td>'+(r.status==='pending'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="accepted">গ্রহণ</button> <button class="btn btn-small btn-outline" data-request="'+esc(r.id)+'" data-next="declined">না</button>':r.status==='accepted'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="completed">সম্পন্ন</button>':'—')+'</td>':'<td>'+(r.status==='accepted'?'<button class="btn btn-small" data-contact="'+esc(r.id)+'">নম্বর দেখুন</button>':'অনুমোদনের পর নম্বর পাওয়া যাবে')+'</td>')+'</tr>').join('')+'</tbody></table></div>' : emptyState('এখনো কোনো কাজের অনুরোধ নেই',isProvider?'কেউ কাজের অনুরোধ পাঠালে এখানে দেখতে পাবেন।':'সেবা খুঁজে কাজের অনুরোধ পাঠালে এখানে দেখা যাবে।','📬');
   app.innerHTML = '<section class="page"><div class="container"><div class="profile-top" style="margin-bottom:22px"><div class="profile-avatar">'+esc((profile && profile.full_name || user.email || 'U').slice(0,1))+'</div><div><div class="eyebrow">MY DASHBOARD</div><h1>' + esc(profile && profile.full_name || user.email) + '</h1><p>'+(isProvider?'সেবাদাতা অ্যাকাউন্ট':'সেবাগ্রহীতা অ্যাকাউন্ট')+' · '+esc(profile && profile.district || 'এলাকা সেট করা হয়নি')+'</p></div><button id="logout-btn" class="btn btn-outline right">লগআউট</button></div><div class="dashboard-grid"><nav class="side-nav"><a class="active" href="#dashboard">ড্যাশবোর্ড</a>'+(isProvider?'<a href="#provider-start">আমার সেবা</a>':'<a href="#find">সেবা খুঁজুন</a>')+'<a href="#account">প্রোফাইল সেটিংস</a></nav><div><div class="stats"><div class="stat"><strong>'+requests.length.toLocaleString('bn-BD')+'</strong><span>'+(isProvider?'পাওয়া অনুরোধ':'পাঠানো অনুরোধ')+'</span></div><div class="stat"><strong>'+services.length.toLocaleString('bn-BD')+'</strong><span>আমার সেবা</span></div><div class="stat"><strong>'+esc(pp.data?statusLabels[pp.data.approval_status] || pp.data.approval_status:'—')+'</strong><span>প্রোফাইল যাচাই</span></div></div><div class="panel"><div class="results-head"><div><h2>'+(isProvider?'আমার কাছে আসা অনুরোধ':'আমার পাঠানো অনুরোধ')+'</h2><p>সর্বশেষ কাজের আপডেট</p></div></div>'+rows+'</div>'+(isProvider?'<div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>আমার সেবাসমূহ</h2><p>অ্যাডমিন যাচাইয়ের অবস্থা</p></div></div>'+(services.length?'<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>অবস্থা</th></tr></thead><tbody>'+services.map(s=>'<tr><td>'+esc(s.title)+'</td><td><span class="status '+esc(s.status)+'">'+esc(statusLabels[s.status] || s.status)+'</span></td></tr>').join('')+'</tbody></table></div>':emptyState('সেবা যোগ করা হয়নি','আপনার সেবা-প্রোফাইল তৈরি করুন।'))+'</div>':'')+'</div></div></div></section>';
   document.getElementById('logout-btn').onclick = signOut;
   app.querySelectorAll('[data-request]').forEach(btn => btn.addEventListener('click', async () => {
     const result = await db.from('service_requests').update({status:btn.dataset.next}).eq('id',btn.dataset.request);
     if (result.error) toast('অনুরোধ আপডেট করা যায়নি: ' + result.error.message);
     else { toast('অনুরোধের অবস্থা আপডেট হয়েছে।'); dashboardPage(); }
+  }));
+  app.querySelectorAll('[data-customer-contact]').forEach(btn=>btn.addEventListener('click',async()=>{
+    btn.disabled=true;btn.textContent='লোড হচ্ছে…';
+    const result=await db.rpc('get_customer_contact',{p_request_id:btn.dataset.customerContact});
+    if(result.error || !result.data){toast('গ্রাহকের নম্বর পাওয়া যায়নি। অনুরোধটি গৃহীত হয়েছে কি না দেখুন।');btn.disabled=false;btn.textContent='নম্বর দেখুন';return;}
+    btn.outerHTML='<a class="btn btn-small" href="tel:'+encodeURIComponent(result.data)+'">'+esc(result.data)+'</a>';
   }));
   app.querySelectorAll('[data-contact]').forEach(btn=>btn.addEventListener('click',async()=>{
     btn.disabled=true;btn.textContent='লোড হচ্ছে…';
@@ -277,19 +297,19 @@ async function adminPage() {
     app.innerHTML='<section class="page"><div class="container">'+emptyState('অ্যাডমিন প্রবেশাধিকার নেই','এই পেজ শুধু অনুমোদিত অ্যাডমিনদের জন্য।','🔒')+'</div></section>';
     return;
   }
-  const pending = await db.from('provider_profiles').select('user_id,business_name,bio,experience_years,created_at,profile:profiles(full_name,district,area)').eq('approval_status','pending').order('created_at');
+  const pending = await db.from('provider_profiles').select('user_id,business_name,bio,experience_years,district,area,created_at,profile:profiles(full_name)').eq('approval_status','pending').order('created_at');
   const pendingServices = await db.from('services').select('id,title,description,provider_id,category:categories(name),provider:provider_profiles(business_name,approval_status)').eq('status','pending').order('created_at');
   if (pending.error || pendingServices.error) { app.innerHTML=notice('অ্যাডমিন তালিকা লোড করা যায়নি: '+((pending.error||pendingServices.error).message),'error'); return; }
   const rows=pending.data||[];
   const serviceRows=pendingServices.data||[];
-  app.innerHTML='<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">ADMIN CONTROL</div><h1>অ্যাডমিন যাচাই কেন্দ্র</h1><p>প্রথমে সেবাদাতার পরিচিতি, তারপর তার প্রতিটি সেবা যাচাই করুন। দুটিই অনুমোদিত না হলে পাবলিক তালিকায় দেখাবে না।</p></div><div class="panel"><div class="results-head"><div><h2>সেবাদাতার প্রোফাইল</h2><p>নতুন সেবাদাতা যাচাই</p></div></div>'+(rows.length?'<div class="table-wrap"><table><thead><tr><th>নাম</th><th>ব্যবসা / কাজ</th><th>এলাকা</th><th>অভিজ্ঞতা</th><th>সিদ্ধান্ত</th></tr></thead><tbody>'+rows.map(p=>'<tr><td>'+esc(p.profile && p.profile.full_name || 'নাম নেই')+'</td><td>'+esc(p.business_name)+'</td><td>'+esc((p.profile && p.profile.district || '-')+' · '+(p.profile && p.profile.area || '-'))+'</td><td>'+esc(p.experience_years)+' বছর</td><td><button class="btn btn-small" data-provider="'+esc(p.user_id)+'" data-next="approved">অনুমোদন</button> <button class="btn btn-small btn-outline" data-provider="'+esc(p.user_id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>').join('')+'</tbody></table></div>':emptyState('কোনো অপেক্ষমাণ প্রোফাইল নেই','নতুন সেবাদাতা নিবন্ধন করলে এখানে আসবে।','✅'))+'</div><div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>সেবা যাচাই</h2><p>সেবাদাতার প্রতিটি সেবা আলাদাভাবে অনুমোদন করুন</p></div></div>'+(serviceRows.length?'<div class="table-wrap"><table><thead><tr><th>সেবার নাম</th><th>ক্যাটাগরি</th><th>সেবাদাতা</th><th>প্রোফাইল</th><th>সিদ্ধান্ত</th></tr></thead><tbody>'+serviceRows.map(s=>'<tr><td>'+esc(s.title)+'</td><td>'+esc(s.category && s.category.name || '-')+'</td><td>'+esc(s.provider && s.provider.business_name || '-')+'</td><td><span class="status '+(s.provider && s.provider.approval_status==='approved'?'approved':'pending')+'">'+esc(statusLabels[s.provider && s.provider.approval_status] || 'অপেক্ষমাণ')+'</span></td><td><button class="btn btn-small" data-service="'+esc(s.id)+'" data-next="approved">অনুমোদন</button> <button class="btn btn-small btn-outline" data-service="'+esc(s.id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>').join('')+'</tbody></table></div>':emptyState('কোনো অপেক্ষমাণ সেবা নেই','সেবাদাতারা নতুন সেবা জমা দিলে এখানে আসবে।','✅'))+'</div></div></section>';
+  app.innerHTML='<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">ADMIN CONTROL</div><h1>অ্যাডমিন যাচাই কেন্দ্র</h1><p>প্রথমে সেবাদাতার পরিচিতি, তারপর তার প্রতিটি সেবা যাচাই করুন। দুটিই অনুমোদিত না হলে পাবলিক তালিকায় দেখাবে না।</p></div><div class="panel"><div class="results-head"><div><h2>সেবাদাতার প্রোফাইল</h2><p>নতুন সেবাদাতা যাচাই</p></div></div>'+(rows.length?'<div class="table-wrap"><table><thead><tr><th>নাম</th><th>ব্যবসা / কাজ</th><th>এলাকা</th><th>অভিজ্ঞতা</th><th>সিদ্ধান্ত</th></tr></thead><tbody>'+rows.map(p=>'<tr><td>'+esc(p.profile && p.profile.full_name || 'নাম নেই')+'</td><td>'+esc(p.business_name)+'</td><td>'+esc((p.district || '-')+' · '+(p.area || '-'))+'</td><td>'+esc(p.experience_years)+' বছর</td><td><button class="btn btn-small" data-provider="'+esc(p.user_id)+'" data-next="approved">অনুমোদন</button> <button class="btn btn-small btn-outline" data-provider="'+esc(p.user_id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>').join('')+'</tbody></table></div>':emptyState('কোনো অপেক্ষমাণ প্রোফাইল নেই','নতুন সেবাদাতা নিবন্ধন করলে এখানে আসবে।','✅'))+'</div><div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>সেবা যাচাই</h2><p>সেবাদাতার প্রতিটি সেবা আলাদাভাবে অনুমোদন করুন</p></div></div>'+(serviceRows.length?'<div class="table-wrap"><table><thead><tr><th>সেবার নাম</th><th>ক্যাটাগরি</th><th>সেবাদাতা</th><th>প্রোফাইল</th><th>সিদ্ধান্ত</th></tr></thead><tbody>'+serviceRows.map(s=>'<tr><td>'+esc(s.title)+'</td><td>'+esc(s.category && s.category.name || '-')+'</td><td>'+esc(s.provider && s.provider.business_name || '-')+'</td><td><span class="status '+(s.provider && s.provider.approval_status==='approved'?'approved':'pending')+'">'+esc(statusLabels[s.provider && s.provider.approval_status] || 'অপেক্ষমাণ')+'</span></td><td><button class="btn btn-small" data-service="'+esc(s.id)+'" data-next="approved">অনুমোদন</button> <button class="btn btn-small btn-outline" data-service="'+esc(s.id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>').join('')+'</tbody></table></div>':emptyState('কোনো অপেক্ষমাণ সেবা নেই','সেবাদাতারা নতুন সেবা জমা দিলে এখানে আসবে।','✅'))+'</div></div></section>';
   app.querySelectorAll('[data-provider]').forEach(btn=>btn.addEventListener('click',async()=>{
-    const r=await db.from('provider_profiles').update({approval_status:btn.dataset.next}).eq('user_id',btn.dataset.provider);
-    if(r.error) toast('আপডেট হয়নি: '+r.error.message); else {toast('প্রোফাইলের সিদ্ধান্ত সংরক্ষিত হয়েছে।');adminPage();}
+    const r=await db.rpc('admin_set_provider_status',{p_user_id:btn.dataset.provider,p_status:btn.dataset.next});
+    if(r.error || r.data !== true) toast('আপডেট হয়নি: '+(r.error ? r.error.message : 'অ্যাডমিন অনুমতি যাচাই করুন।')); else {toast('প্রোফাইলের সিদ্ধান্ত সংরক্ষিত হয়েছে।');adminPage();}
   }));
   app.querySelectorAll('[data-service]').forEach(btn=>btn.addEventListener('click',async()=>{
-    const r=await db.from('services').update({status:btn.dataset.next}).eq('id',btn.dataset.service);
-    if(r.error) toast('সেবার সিদ্ধান্ত সংরক্ষিত হয়নি: '+r.error.message); else {toast('সেবার সিদ্ধান্ত সংরক্ষণ হয়েছে।');adminPage();}
+    const r=await db.rpc('admin_set_service_status',{p_service_id:btn.dataset.service,p_status:btn.dataset.next});
+    if(r.error || r.data !== true) toast('সেবার সিদ্ধান্ত সংরক্ষিত হয়নি: '+(r.error ? r.error.message : 'অ্যাডমিন অনুমতি যাচাই করুন।')); else {toast('সেবার সিদ্ধান্ত সংরক্ষণ হয়েছে।');adminPage();}
   }));
 }
 async function howPage() {
@@ -308,7 +328,7 @@ async function signUp(form) {
   if (result.error) { toast(result.error.message); return; }
   if (result.data.session) {
     user = result.data.user;
-    await loadProfile();
+    await ensureProfile();
     toast('অ্যাকাউন্ট তৈরি হয়েছে।');
     go(role==='provider'?'provider-start':'find');
   } else {
@@ -322,7 +342,7 @@ async function signIn(form) {
   const result=await db.auth.signInWithPassword({email:String(data.get('email')).trim(),password:String(data.get('password'))});
   if(result.error){toast('লগইন হয়নি: '+result.error.message);return;}
   user=result.data.user;
-  await loadProfile();
+  await ensureProfile();
   toast('লগইন সফল হয়েছে।');
   const destination=afterLoginPath;
   afterLoginPath='dashboard';
@@ -339,7 +359,7 @@ async function saveProvider(form) {
   const d=new FormData(form);
   const locationUpdate=await db.from('profiles').update({district:String(d.get('district')).trim(),area:String(d.get('area')).trim()}).eq('id',user.id);
   if(locationUpdate.error){toast('এলাকার তথ্য সংরক্ষণ হয়নি: '+locationUpdate.error.message);return;}
-  const provider={user_id:user.id,business_name:String(d.get('business_name')).trim(),bio:String(d.get('bio')).trim(),experience_years:Number(d.get('experience_years'))};
+  const provider={user_id:user.id,business_name:String(d.get('business_name')).trim(),bio:String(d.get('bio')).trim(),district:String(d.get('district')).trim(),area:String(d.get('area')).trim(),experience_years:Number(d.get('experience_years'))};
   const p=await db.from('provider_profiles').insert(provider);
   if(p.error){toast('প্রোফাইল তৈরি হয়নি: '+p.error.message);return;}
   const service={
@@ -375,6 +395,10 @@ async function saveAccount(form) {
     area:String(d.get('area')||'').trim()
   }).eq('id',user.id);
   if(result.error){toast('তথ্য সংরক্ষণ হয়নি: '+result.error.message);return;}
+  if (profile && profile.user_type === 'provider') {
+    const providerUpdate = await db.from('provider_profiles').update({district:String(d.get('district')||'').trim(),area:String(d.get('area')||'').trim()}).eq('user_id',user.id);
+    if (providerUpdate.error) { toast('এলাকার তথ্য সেবাদাতা প্রোফাইলে আপডেট হয়নি: '+providerUpdate.error.message); return; }
+  }
   await loadProfile();toast('প্রোফাইল আপডেট হয়েছে।');go('dashboard');
 }
 function bindForms() {
