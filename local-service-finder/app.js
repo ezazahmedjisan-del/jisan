@@ -147,6 +147,11 @@ function homePage() {
 function authPage(kind) {
   const isProvider = kind === 'signup-provider';
   if (kind === 'login') {
+    if (user) {
+      const displayName = esc(profile && profile.full_name || user.email || 'আপনার অ্যাকাউন্ট');
+      const emailLine = user.email ? '<p class="hint">' + esc(user.email) + '</p>' : '';
+      return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc((profile && profile.full_name || user.email || 'U').slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">Continue as ' + displayName + '</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div><p class="hint" style="margin-top:16px">আপনার পাসওয়ার্ড এই সাইটে সেভ করা হয় না। লগইন ধরে রাখতে Supabase-এর সুরক্ষিত সেশন ব্যবহার করা হয়।</p></div></div></section>';
+    }
     return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আপনার অ্যাকাউন্টে প্রবেশ করুন</h1><p>নিবন্ধিত ইমেইল ও পাসওয়ার্ড ব্যবহার করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label>ইমেইল</label><input name="email" type="email" required autocomplete="email" placeholder="আপনার ইমেইল"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required autocomplete="current-password" placeholder="পাসওয়ার্ড"></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p></div></div></section>';
   }
   return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>সঠিক তথ্য দিন। আপনার অ্যাকাউন্ট নিরাপদে তৈরি হবে।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
@@ -353,9 +358,11 @@ async function signIn(form) {
 }
 async function signOut() {
   if (!db) return;
-  const result=await db.auth.signOut();
-  if(result.error){toast('লগআউট হয়নি।');return;}
-  user=null;profile=null;toast('লগআউট হয়েছে।');go('home');
+  const result=await db.auth.signOut({scope:'local'});
+  if(result.error){toast('লগআউট হয়নি: '+result.error.message);return;}
+  user=null;profile=null;afterLoginPath='dashboard';
+  toast('এই ডিভাইস থেকে লগআউট হয়েছে।');
+  go('home');
 }
 async function saveProvider(form) {
   if (!db || !user) return;
@@ -405,6 +412,23 @@ async function saveAccount(form) {
   await loadProfile();toast('প্রোফাইল আপডেট হয়েছে।');go('dashboard');
 }
 function bindForms() {
+  const continueButton = document.getElementById('continue-session');
+  if (continueButton) continueButton.addEventListener('click', () => {
+    const destination = afterLoginPath || 'dashboard';
+    afterLoginPath = 'dashboard';
+    go(destination);
+  });
+  const switchButton = document.getElementById('switch-account');
+  if (switchButton) switchButton.addEventListener('click', async () => {
+    if (!db) return;
+    const result = await db.auth.signOut({scope:'local'});
+    if (result.error) { toast('অ্যাকাউন্ট বদলানো যায়নি: '+result.error.message); return; }
+    user = null;
+    profile = null;
+    afterLoginPath = 'dashboard';
+    toast('এই ডিভাইস থেকে লগআউট হয়েছে। অন্য অ্যাকাউন্ট দিয়ে লগইন করুন।');
+    await render();
+  });
   const handlers={
     'signup-form':signUp,'login-form':signIn,'provider-form':saveProvider,
     'request-form':sendRequest,'account-form':saveAccount
