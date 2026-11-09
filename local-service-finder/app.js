@@ -36,7 +36,8 @@ function backendNotice() {
 }
 function route() {
   const raw = location.hash.replace(/^#/, '') || 'home';
-  const parts = raw.split('/');
+  const pathOnly = raw.split('?')[0];
+  const parts = pathOnly.split('/');
   return {name:parts[0], id:parts[1] || ''};
 }
 function go(path) { location.hash = path; }
@@ -186,7 +187,7 @@ async function providerStartPage() {
     const cr = await db.from('categories').select('id,name').order('name');
     if (!cr.error) categories = cr.data || [];
   }
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">PROVIDER PROFILE</div><h1>আপনার সেবার পরিচিতি দিন</h1><p>তথ্য জমা দিলে যাচাইয়ের জন্য অপেক্ষায় থাকবে। অনুমোদিত না হওয়া পর্যন্ত পাবলিক তালিকায় দেখাবে না।</p></div><form id="provider-form" class="form-grid">' + formField('প্রতিষ্ঠান / সেবার নাম','business_name','text','যেমন: জিসান ইলেকট্রিক সার্ভিস',true) + formField('অভিজ্ঞতা (বছর)','experience_years','number','যেমন: ৩',true,'min="0" max="60"') + '<div class="field full"><label>আপনার পরিচিতি ও দক্ষতা</label><textarea name="bio" required minlength="20" placeholder="কোন ধরনের কাজ করেন, কী অভিজ্ঞতা আছে…"></textarea></div>' + selectField('প্রধান সেবার ধরন','category_id',categoryOptions(),true) + formField('সেবার শিরোনাম','title','text','যেমন: বাসাবাড়ির বৈদ্যুতিক মেরামত',true) + '<div class="field full"><label>সেবার বিস্তারিত</label><textarea name="description" required minlength="20" placeholder="কী কী কাজ করেন এবং কীভাবে সেবা দেন…"></textarea></div>' + formField('শুরুর মূল্য (টাকা)','price_from','number','যেমন: ৫০০',false,'min="0" step="1"') + selectField('মূল্যের ধরন','price_type','<option value="negotiable">আলোচনা সাপেক্ষে</option><option value="starting">শুরু ৳… থেকে</option><option value="fixed">নির্দিষ্ট মূল্য</option>',true) + '<div class="field full"><button class="btn" type="submit">প্রোফাইল জমা দিন</button></div></form></div></div></section>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">PROVIDER PROFILE</div><h1>আপনার সেবার পরিচিতি দিন</h1><p>তথ্য জমা দিলে যাচাইয়ের জন্য অপেক্ষায় থাকবে। অনুমোদিত না হওয়া পর্যন্ত পাবলিক তালিকায় দেখাবে না।</p></div><form id="provider-form" class="form-grid">' + formField('প্রতিষ্ঠান / সেবার নাম','business_name','text','যেমন: জিসান ইলেকট্রিক সার্ভিস',true) + formField('অভিজ্ঞতা (বছর)','experience_years','number','যেমন: ৩',true,'min="0" max="60"') + formField('জেলা','district','text','আপনার জেলা',true) + formField('এলাকা','area','text','যেমন: জয়দেবপুর / টঙ্গী',true) + '<div class="field full"><label>আপনার পরিচিতি ও দক্ষতা</label><textarea name="bio" required minlength="20" placeholder="কোন ধরনের কাজ করেন, কী অভিজ্ঞতা আছে…"></textarea></div>' + selectField('প্রধান সেবার ধরন','category_id',categoryOptions(),true) + formField('সেবার শিরোনাম','title','text','যেমন: বাসাবাড়ির বৈদ্যুতিক মেরামত',true) + '<div class="field full"><label>সেবার বিস্তারিত</label><textarea name="description" required minlength="20" placeholder="কী কী কাজ করেন এবং কীভাবে সেবা দেন…"></textarea></div>' + formField('শুরুর মূল্য (টাকা)','price_from','number','যেমন: ৫০০',false,'min="0" step="1"') + selectField('মূল্যের ধরন','price_type','<option value="negotiable">আলোচনা সাপেক্ষে</option><option value="starting">শুরু ৳… থেকে</option><option value="fixed">নির্দিষ্ট মূল্য</option>',true) + '<div class="field full"><button class="btn" type="submit">প্রোফাইল জমা দিন</button></div></form></div></div></section>';
 }
 async function dashboardPage() {
   if (!user) { go('login'); return; }
@@ -277,6 +278,8 @@ async function signOut() {
 async function saveProvider(form) {
   if (!db || !user) return;
   const d=new FormData(form);
+  const locationUpdate=await db.from('profiles').update({district:String(d.get('district')).trim(),area:String(d.get('area')).trim()}).eq('id',user.id);
+  if(locationUpdate.error){toast('এলাকার তথ্য সংরক্ষণ হয়নি: '+locationUpdate.error.message);return;}
   const provider={user_id:user.id,business_name:String(d.get('business_name')).trim(),bio:String(d.get('bio')).trim(),experience_years:Number(d.get('experience_years'))};
   const p=await db.from('provider_profiles').insert(provider);
   if(p.error){toast('প্রোফাইল তৈরি হয়নি: '+p.error.message);return;}
