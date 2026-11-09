@@ -188,7 +188,10 @@ using (user_id = auth.uid() or public.is_admin());
 
 drop policy if exists "provider creates own profile" on public.provider_profiles;
 create policy "provider creates own profile" on public.provider_profiles for insert to authenticated
-with check (user_id = auth.uid());
+with check (
+  user_id = auth.uid()
+  and exists(select 1 from public.profiles p where p.id = auth.uid() and p.user_type = 'provider')
+);
 
 drop policy if exists "provider updates own profile or admin" on public.provider_profiles;
 create policy "provider updates own profile or admin" on public.provider_profiles for update to authenticated
@@ -199,9 +202,19 @@ drop policy if exists "service owner or admin read" on public.services;
 create policy "service owner or admin read" on public.services for select to authenticated
 using (provider_id = auth.uid() or public.is_admin());
 
+drop policy if exists "approved services publicly readable" on public.services;
+create policy "approved services publicly readable" on public.services for select to anon,authenticated
+using (
+  status = 'approved'
+  and exists(select 1 from public.provider_profiles pp where pp.user_id = provider_id and pp.approval_status = 'approved')
+);
+
 drop policy if exists "provider creates own service" on public.services;
 create policy "provider creates own service" on public.services for insert to authenticated
-with check (provider_id = auth.uid());
+with check (
+  provider_id = auth.uid()
+  and exists(select 1 from public.provider_profiles pp where pp.user_id = auth.uid())
+);
 
 drop policy if exists "provider edits own service or admin" on public.services;
 create policy "provider edits own service or admin" on public.services for update to authenticated
@@ -241,7 +254,7 @@ join public.categories c on c.id = s.category_id
 where pp.approval_status = 'approved' and s.status = 'approved';
 
 grant usage on schema public to anon,authenticated;
-grant select on public.categories,public.public_services to anon,authenticated;
+grant select on public.categories,public.services,public.public_services to anon,authenticated;
 grant select on public.profiles to authenticated;
 grant update(full_name,phone,district,area) on public.profiles to authenticated;
 grant insert,select,update on public.provider_profiles to authenticated;
