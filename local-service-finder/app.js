@@ -12,7 +12,6 @@ let profile = null;
 let categories = [];
 let toastTimer = null;
 let afterLoginPath = 'profile';
-let pendingOtpEmail = '';
 
 const icons = {'ইলেকট্রিশিয়ান':'💡','প্লাম্বার':'🚿','টিউটর':'📚','এসি মেকানিক':'❄️','ক্লিনিং':'🧹','পেইন্টার':'🖌️','কম্পিউটার সার্ভিস':'💻','মিস্ত্রি':'🧱','ফ্রিজ মেকানিক':'🧊','মোবাইল সার্ভিসিং':'📱','কার্পেন্টার / কাঠমিস্ত্রি':'🪚','ওয়েল্ডিং':'🛠️','টাইলস মিস্ত্রি':'🧱','গ্লাস ও অ্যালুমিনিয়াম':'🪟','সিসিটিভি ও নেটওয়ার্ক':'📹','সেলাই ও দর্জি':'🧵','গাড়ি মেরামত':'🚗','মোটরসাইকেল মেকানিক':'🏍️','জেনারেটর / আইপিএস সার্ভিস':'🔋','লন্ড্রি ও ইস্ত্রি':'👕','বাগান পরিচর্যা':'🌱','ক্যাটারিং / রান্নার সেবা':'🍲','ইভেন্ট সাজসজ্জা':'🎉','ফটোগ্রাফি / ভিডিও':'📷','গ্রাফিক ডিজাইন':'🎨','আইটি ও অনলাইন সাপোর্ট':'🖥️','বাসা বদল / মুভিং':'📦','সোলার প্যানেল সার্ভিস':'☀️','স্যানিটারি ও বাথরুম ফিটিং':'🚿','টিভি ও ইলেকট্রনিক্স মেরামত':'📺','পানির পাম্প সার্ভিস':'💧','ফার্নিচার মেরামত':'🛋️','সেলুন / পার্লার':'💇'};
 const LOCAL_CATEGORIES = Object.keys(icons);
@@ -145,30 +144,15 @@ function serviceCard(item) {
 function homePage() {
   return '<section class="hero"><div class="container hero-grid"><div><div class="eyebrow">LOCAL SERVICE FINDER BD</div><h1>দরকারি সেবা,<br>এবার নিজের এলাকাতেই।</h1><p>ইলেকট্রিশিয়ান, প্লাম্বার, টিউটর থেকে শুরু করে নানা ধরনের স্থানীয় সেবাদাতার সঙ্গে যোগাযোগের সহজ প্ল্যাটফর্ম। কাজ খুঁজুন অথবা নিজের দক্ষতা দিয়ে কাজের সুযোগ তৈরি করুন।</p><div class="hero-actions"><a class="btn" href="#find">সেবা খুঁজে দেখুন <span>→</span></a><a class="btn btn-outline" href="#provider-start">সেবাদাতা হিসেবে যোগ দিন</a>' + (user ? '<a class="btn btn-quiet" href="#profile">Continue as ' + esc(profile && profile.full_name || user.email || 'আপনার অ্যাকাউন্ট') + ' →</a>' : '') + '</div><div class="hero-note">যাচাই ছাড়া কাউকে অনুমোদিত সেবাদাতা হিসেবে দেখানো হবে না।</div></div><div class="visual-panel"><div class="visual-pin">আপনার এলাকার সেবা</div><div class="visual-tile"><div class="icon">🔧</div><b>দক্ষ কারিগর</b><span>মেরামত ও রক্ষণাবেক্ষণ</span></div><div class="visual-tile"><div class="icon">📍</div><b>এলাকাভিত্তিক খোঁজ</b><span>জেলা ও এলাকা নির্বাচন</span></div><div class="visual-tile"><div class="icon">🤝</div><b>সরাসরি অনুরোধ</b><span>কাজের বিবরণ পাঠান</span></div><div class="visual-tile"><div class="icon">🛡️</div><b>যাচাইয়ের ধাপ</b><span>অনুমোদনের পর তালিকাভুক্ত</span></div></div></div></section><div class="trust-strip"><div class="container trust-grid"><div class="trust-item"><strong>01</strong> প্রয়োজন অনুযায়ী সেবা খুঁজুন</div><div class="trust-item"><strong>02</strong> এলাকার তথ্য মিলিয়ে নিন</div><div class="trust-item"><strong>03</strong> কাজের অনুরোধ পাঠান</div></div></div><section class="section"><div class="container"><div class="section-head"><div class="eyebrow">দুইভাবে ব্যবহার করুন</div><h2>আপনি কোন ভূমিকায় আছেন?</h2><p>নিজের প্রয়োজন অনুযায়ী সঠিক পথে শুরু করুন।</p></div><div class="role-grid"><article class="role-card"><div class="icon">🔎</div><h3>আমার সেবা প্রয়োজন</h3><p>এলাকা ও কাজের ধরন বেছে নিয়ে সেবাদাতাদের তালিকা দেখুন। প্রোফাইল যাচাই করে কাজের অনুরোধ পাঠান।</p><a class="text-link" href="#signup-customer">সেবাগ্রহীতা অ্যাকাউন্ট খুলুন →</a></article><article class="role-card"><div class="icon">🧰</div><h3>আমি সেবা দিতে চাই</h3><p>নিজের দক্ষতা, কাজের বিবরণ ও সার্ভিস এলাকা দিয়ে প্রোফাইল তৈরি করুন। যাচাই শেষে সেবার তালিকায় যুক্ত হোন।</p><a class="text-link" href="#signup-provider">সেবাদাতা হিসেবে যোগ দিন →</a></article></div></div></section><section class="section" style="background:#f0f5f0"><div class="container"><div class="section-head"><div class="eyebrow">জনপ্রিয় ক্যাটাগরি</div><h2>কোন সেবাটি খুঁজছেন?</h2><p>ক্যাটাগরি বেছে নিয়ে সেবার তালিকায় যান।</p></div><div class="category-grid">' + Object.keys(icons).slice(0,8).map(name => '<a class="category-card" href="#find?category=' + encodeURIComponent(name) + '"><span class="icon">' + icons[name] + '</span><b>' + esc(name) + '</b></a>').join('') + '</div></div></section><section class="section"><div class="container"><div class="cta-band"><div><h2>আপনার দক্ষতাই হতে পারে পরবর্তী সুযোগ</h2><p>সেবাদাতা হিসেবে নিবন্ধন করে নিজের কাজের পরিচিতি তৈরি করুন।</p></div><a class="btn" href="#provider-start">প্রোফাইল তৈরি করুন →</a></div></div></section>';
 }
-function googleLoginButtonMarkup() {
-  return '<button class="btn google-btn" type="button" id="google-login" ' + (!db ? 'disabled' : '') + '><span class="google-mark" aria-hidden="true">G</span> Google দিয়ে চালিয়ে যান</button><div class="auth-divider"><span>অথবা ইমেইল দিয়ে লগইন</span></div>';
-}
-function takeOAuthDestination() {
-  try {
-    const target = sessionStorage.getItem('lsf_after_oauth');
-    if (!target) return '';
-    sessionStorage.removeItem('lsf_after_oauth');
-    if (target === 'profile' || target === 'dashboard') return target;
-  } catch (_) {}
-  return 'profile';
-}
 function authPage(kind) {
   const isProvider = kind === 'signup-provider';
   if (kind === 'login') {
     if (user) {
       const displayName = esc(profile && profile.full_name || user.email || 'আপনার অ্যাকাউন্ট');
       const emailLine = user.email ? '<p class="hint">' + esc(user.email) + '</p>' : '';
-      return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc((profile && profile.full_name || user.email || 'U').slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">Continue as ' + displayName + '</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div><p class="hint" style="margin-top:16px">আপনার পাসওয়ার্ড এই সাইটে সেভ করা হয় না। লগইন ধরে রাখতে Supabase-এর সুরক্ষিত সেশন ব্যবহার করা হয়।</p></div></div></section>';
+      return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc((profile && profile.full_name || user.email || 'U').slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div><p class="hint" style="margin-top:16px">তোমার লগইন নিরাপদভাবে Supabase Auth পরিচালনা করে।</p></div></div></section>';
     }
-    if (pendingOtpEmail) {
-      return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">EMAIL VERIFICATION</div><h1>ইমেইলে পাঠানো কোড দিন</h1><p>' + esc(pendingOtpEmail) + ' ঠিকানায় ৬ সংখ্যার OTP পাঠানো হয়েছে। ইনবক্স ও স্প্যাম ফোল্ডার দেখুন।</p></div><form id="otp-form" class="form-grid"><div class="field full"><label>৬ সংখ্যার OTP</label><input name="token" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="000000" aria-label="৬ সংখ্যার OTP"></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>কোড যাচাই করে লগইন করুন</button></div></form><div class="form-actions"><button type="button" class="btn btn-outline" id="resend-otp" ' + (!db ? 'disabled' : '') + '>আবার OTP পাঠান</button><button type="button" class="btn btn-quiet" id="change-email">ইমেইল পরিবর্তন</button></div><p class="hint">কোডটি কাউকে দেবেন না। ChatGPT বা সাইটের কোনো কর্মীও OTP চাইবে না।</p></div></div></section>';
-    }
-    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>সহজে লগইন করুন</h1><p>আপনার নিবন্ধিত ইমেইলে একবার ব্যবহারযোগ্য কোড পাঠানো হবে।</p></div>' + backendNotice() + googleLoginButtonMarkup() + '<form id="login-form" class="form-grid"><div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>ইমেইলে OTP পাঠান</button></div></form><p class="hint">পাসওয়ার্ড মনে রাখার দরকার নেই। আগে অ্যাকাউন্ট খুলে থাকলেই OTP দিয়ে প্রবেশ করতে পারবেন।</p><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p></div></div></section>';
+    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>সহজে লগইন করুন</h1><p>ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-email">ইমেইল ঠিকানা</label><input id="login-email" name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="তোমার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">পাসওয়ার্ড কাউকে দেবে না। অন্যের কম্পিউটারে লগইন করলে শেষে লগআউট করবে।</p></div></div></section>';
   }
   return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>সঠিক তথ্য দিন। আপনার অ্যাকাউন্ট নিরাপদে তৈরি হবে।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
 }
@@ -363,69 +347,22 @@ async function signUp(form) {
     form.reset();
   }
 }
-async function signInWithGoogle() {
+async function signInWithPassword(form) {
   if (!db) return;
-  try {
-    sessionStorage.setItem('lsf_after_oauth', afterLoginPath || 'profile');
-    const result = await db.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/',
-        queryParams: { prompt: 'select_account' }
-      }
-    });
-    if (result.error) {
-      sessionStorage.removeItem('lsf_after_oauth');
-      toast('Google Login চালু হয়নি। Supabase Dashboard-এ Google provider সেটআপ করুন।');
+  const data = new FormData(form);
+  const email = String(data.get('email') || '').trim().toLowerCase();
+  const password = String(data.get('password') || '');
+  if (!email || !password) { toast('ইমেইল ও পাসওয়ার্ড লিখুন।'); return; }
+  const result = await db.auth.signInWithPassword({ email, password });
+  if (result.error) {
+    if ((result.error.message || '').toLowerCase().includes('email not confirmed')) {
+      toast('আগে ইমেইল যাচাই সম্পন্ন করুন।');
+    } else {
+      toast('ইমেইল বা পাসওয়ার্ড সঠিক নয়। আবার চেষ্টা করুন।');
     }
-  } catch (error) {
-    try { sessionStorage.removeItem('lsf_after_oauth'); } catch (_) {}
-    toast('Google Login শুরু করা যায়নি: ' + (error.message || 'আবার চেষ্টা করুন।'));
-  }
-}
-async function requestEmailOtp(email) {
-  if (!db) return;
-  const normalizedEmail = String(email || '').trim().toLowerCase();
-  if (!normalizedEmail) { toast('আপনার ইমেইল ঠিকানা লিখুন।'); return; }
-  const result = await db.auth.signInWithOtp({
-    email: normalizedEmail,
-    options: { shouldCreateUser: false }
-  });
-  if (result.error) {
-    toast('OTP পাঠানো যায়নি: ' + result.error.message);
-    return;
-  }
-  pendingOtpEmail = normalizedEmail;
-  toast('ইমেইলে OTP পাঠানো হয়েছে। ইনবক্স ও স্প্যাম ফোল্ডার দেখুন।');
-  await render();
-}
-
-async function sendLoginOtp(form) {
-  const data = new FormData(form);
-  await requestEmailOtp(data.get('email'));
-}
-
-async function resendLoginOtp() {
-  if (!pendingOtpEmail) return;
-  await requestEmailOtp(pendingOtpEmail);
-}
-
-async function verifyLoginOtp(form) {
-  if (!db || !pendingOtpEmail) return;
-  const data = new FormData(form);
-  const token = String(data.get('token') || '').replace(/\D/g, '');
-  if (!/^[0-9]{6}$/.test(token)) { toast('৬ সংখ্যার সঠিক OTP লিখুন।'); return; }
-  const result = await db.auth.verifyOtp({
-    email: pendingOtpEmail,
-    token,
-    type: 'email'
-  });
-  if (result.error) {
-    toast('কোডটি সঠিক নয় বা মেয়াদ শেষ হয়েছে। আবার চেষ্টা করুন।');
     return;
   }
   user = result.data.user;
-  pendingOtpEmail = '';
   await ensureProfile();
   toast('লগইন সফল হয়েছে।');
   const destination = afterLoginPath || 'profile';
@@ -436,7 +373,7 @@ async function signOut() {
   if (!db) return;
   const result=await db.auth.signOut({scope:'local'});
   if(result.error){toast('লগআউট হয়নি: '+result.error.message);return;}
-  user=null;profile=null;pendingOtpEmail='';afterLoginPath='profile';
+  user=null;profile=null;afterLoginPath='profile';
   toast('এই ডিভাইস থেকে লগআউট হয়েছে।');
   go('home');
 }
@@ -494,6 +431,13 @@ function bindForms() {
     afterLoginPath = 'profile';
     go(destination);
   });
+  const showPass = document.getElementById('show-login-password');
+  if (showPass) showPass.addEventListener('click', () => {
+    const field = document.getElementById('login-password');
+    if (!field) return;
+    field.type = field.type === 'password' ? 'text' : 'password';
+    showPass.textContent = field.type === 'password' ? 'পাসওয়ার্ড দেখুন' : 'পাসওয়ার্ড লুকান';
+  });
   const switchButton = document.getElementById('switch-account');
   if (switchButton) switchButton.addEventListener('click', async () => {
     if (!db) return;
@@ -502,21 +446,11 @@ function bindForms() {
     user = null;
     profile = null;
     afterLoginPath = 'profile';
-    pendingOtpEmail = '';
     toast('এই ডিভাইস থেকে লগআউট হয়েছে। অন্য অ্যাকাউন্ট দিয়ে OTP লগইন করুন।');
     await render();
   });
-  const googleButton = document.getElementById('google-login');
-  if (googleButton) googleButton.addEventListener('click', signInWithGoogle);
-  const resendButton = document.getElementById('resend-otp');
-  if (resendButton) resendButton.addEventListener('click', resendLoginOtp);
-  const changeEmailButton = document.getElementById('change-email');
-  if (changeEmailButton) changeEmailButton.addEventListener('click', () => {
-    pendingOtpEmail = '';
-    render();
-  });
   const handlers={
-    'signup-form':signUp,'login-form':sendLoginOtp,'otp-form':verifyLoginOtp,'provider-form':saveProvider,
+    'signup-form':signUp,'login-form':signInWithPassword,'provider-form':saveProvider,
     'request-form':sendRequest,'account-form':saveAccount
   };
   Object.keys(handlers).forEach(id=>{
@@ -556,16 +490,9 @@ async function init() {
   setupMenu();
   if (db) {
     await loadSession();
-    const initialOAuthDestination = user ? takeOAuthDestination() : '';
-    if (initialOAuthDestination) go(initialOAuthDestination);
     db.auth.onAuthStateChange((_event,session)=>{
       user=session?session.user:null;
-      Promise.resolve().then(async()=>{
-        await loadProfile();
-        const oauthDestination = session ? takeOAuthDestination() : '';
-        if (oauthDestination) { afterLoginPath='profile'; go(oauthDestination); return; }
-        render();
-      });
+      Promise.resolve().then(async()=>{await loadProfile();render();});
     });
     const cr=await db.from('categories').select('id,name,icon').order('name');
     if (!cr.error) categories=cr.data||[];
