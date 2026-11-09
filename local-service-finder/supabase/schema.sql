@@ -277,10 +277,11 @@ grant select on public.profiles to authenticated;
 grant update(full_name,phone,district,area) on public.profiles to authenticated;
 grant insert,select,update on public.provider_profiles to authenticated;
 grant insert,select,update on public.services to authenticated;
-grant select,insert,update on public.service_requests to authenticated;
+grant select,insert on public.service_requests to authenticated;
+revoke update on public.service_requests from authenticated;
+grant update(status) on public.service_requests to authenticated;
 grant select,insert,delete on public.favorites to authenticated;
 grant select on public.admin_users to authenticated;
-grant usage,select on all sequences in schema public to anon,authenticated;
 
 -- After the first trusted admin account registers, run this once with that user's auth.users ID:
 -- insert into public.admin_users(user_id) values ('PASTE_AUTH_USER_UUID_HERE');
