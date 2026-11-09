@@ -101,6 +101,24 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
 for each row execute procedure public.handle_new_user();
 
+create or replace function public.get_provider_contact(p_request_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select p.phone
+  from public.service_requests r
+  join public.profiles p on p.id = r.provider_id
+  where r.id = p_request_id
+    and r.customer_id = auth.uid()
+    and r.status = 'accepted'
+  limit 1;
+$;
+
+grant execute on function public.get_provider_contact(uuid) to authenticated;
+
 create or replace function public.protect_profile_role()
 returns trigger language plpgsql security definer set search_path = public
 as $
