@@ -385,3 +385,108 @@ using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))
 
 drop policy if exists "admin list admin users" on public.admin_users;
 create policy "admin list admin users" on public.admin_users for select to authenticated using ((select public.is_admin()));
+
+-- Public directory: only approved provider business/location fields are readable.
+drop policy if exists "approved providers publicly readable" on public.provider_profiles;
+create policy "approved providers publicly readable" on public.provider_profiles
+for select to anon, authenticated
+using (approval_status = 'approved');
+
+-- Performance indexes and policy expressions.
+create index if not exists favorites_service_id_idx on public.favorites(service_id);
+create index if not exists service_requests_customer_created_idx on public.service_requests(customer_id, created_at desc);
+create index if not exists service_requests_provider_created_idx on public.service_requests(provider_id, created_at desc);
+create index if not exists service_requests_service_id_idx on public.service_requests(service_id);
+create index if not exists services_category_id_idx on public.services(category_id);
+create index if not exists services_provider_id_idx on public.services(provider_id);
+
+drop policy if exists "profiles read own or admin" on public.profiles;
+create policy "profiles read own or admin" on public.profiles for select to authenticated
+using (id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "profiles insert own" on public.profiles;
+create policy "profiles insert own" on public.profiles for insert to authenticated
+with check (id = (select auth.uid()));
+
+drop policy if exists "profiles update own" on public.profiles;
+create policy "profiles update own" on public.profiles for update to authenticated
+using (id = (select auth.uid()) or (select public.is_admin()))
+with check (id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "provider profile owner or admin read" on public.provider_profiles;
+create policy "provider profile owner or admin read" on public.provider_profiles for select to authenticated
+using (user_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "provider creates own profile" on public.provider_profiles;
+create policy "provider creates own profile" on public.provider_profiles for insert to authenticated
+with check (
+  user_id = (select auth.uid())
+  and approval_status = 'pending'
+  and exists(select 1 from public.profiles p where p.id = (select auth.uid()) and p.user_type = 'provider')
+);
+
+drop policy if exists "provider updates own profile or admin" on public.provider_profiles;
+create policy "provider updates own profile or admin" on public.provider_profiles for update to authenticated
+using (user_id = (select auth.uid()) or (select public.is_admin()))
+with check (user_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "service owner or admin read" on public.services;
+create policy "service owner or admin read" on public.services for select to authenticated
+using (
+  provider_id = (select auth.uid())
+  or (select public.is_admin())
+  or (
+    status = 'approved'
+    and exists(select 1 from public.provider_profiles pp where pp.user_id = services.provider_id and pp.approval_status = 'approved')
+  )
+);
+
+drop policy if exists "approved services publicly readable" on public.services;
+create policy "approved services publicly readable" on public.services for select to anon
+using (
+  status = 'approved'
+  and exists(select 1 from public.provider_profiles pp where pp.user_id = services.provider_id and pp.approval_status = 'approved')
+);
+
+drop policy if exists "provider creates own service" on public.services;
+create policy "provider creates own service" on public.services for insert to authenticated
+with check (
+  provider_id = (select auth.uid())
+  and status = 'pending'
+  and exists(select 1 from public.provider_profiles pp where pp.user_id = (select auth.uid()))
+);
+
+drop policy if exists "provider edits own service or admin" on public.services;
+create policy "provider edits own service or admin" on public.services for update to authenticated
+using (provider_id = (select auth.uid()) or (select public.is_admin()))
+with check (provider_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "requests visible to parties or admin" on public.service_requests;
+create policy "requests visible to parties or admin" on public.service_requests for select to authenticated
+using (customer_id = (select auth.uid()) or provider_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "customer creates own request" on public.service_requests;
+create policy "customer creates own request" on public.service_requests for insert to authenticated
+with check (
+ customer_id = (select auth.uid()) and status = 'pending'
+ and exists (
+  select 1 from public.services s
+  join public.provider_profiles pp on pp.user_id = s.provider_id
+  where s.id = service_requests.service_id
+   and s.provider_id = service_requests.provider_id
+   and s.status = 'approved'
+   and pp.approval_status = 'approved'
+ )
+);
+
+drop policy if exists "provider updates received requests or admin" on public.service_requests;
+create policy "provider updates received requests or admin" on public.service_requests for update to authenticated
+using (provider_id = (select auth.uid()) or (select public.is_admin()))
+with check (provider_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "users manage own favorites" on public.favorites;
+create policy "users manage own favorites" on public.favorites for all to authenticated
+using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+drop policy if exists "admin list admin users" on public.admin_users;
+create policy "admin list admin users" on public.admin_users for select to authenticated using ((select public.is_admin()));
