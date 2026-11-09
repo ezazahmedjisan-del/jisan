@@ -371,7 +371,12 @@ async function signInWithGoogle() {
   });
   if (result.error) {
     try { sessionStorage.removeItem('lsf_google_login_pending'); } catch (_) {}
-    toast('Google Login চালু হয়নি। Google Provider সেটআপ করা আছে কি না দেখুন।');
+    const message = String(result.error.message || '');
+    if (/provider is not enabled/i.test(message)) {
+      toast('Google Login এখনো Supabase-এ চালু হয়নি। Google Client ID ও Secret সেটআপ বাকি।');
+    } else {
+      toast('Google Login চালু করা যায়নি: ' + message);
+    }
   }
 }
 async function signInWithPassword(form) {
