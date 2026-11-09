@@ -11,7 +11,8 @@ let user = null;
 let profile = null;
 let categories = [];
 let toastTimer = null;
-let afterLoginPath = 'dashboard';
+let afterLoginPath = 'profile';
+let pendingOtpEmail = '';
 
 const icons = {'ইলেকট্রিশিয়ান':'💡','প্লাম্বার':'🚿','টিউটর':'📚','এসি মেকানিক':'❄️','ক্লিনিং':'🧹','পেইন্টার':'🖌️','কম্পিউটার সার্ভিস':'💻','মিস্ত্রি':'🧱','ফ্রিজ মেকানিক':'🧊','মোবাইল সার্ভিসিং':'📱','কার্পেন্টার / কাঠমিস্ত্রি':'🪚','ওয়েল্ডিং':'🛠️','টাইলস মিস্ত্রি':'🧱','গ্লাস ও অ্যালুমিনিয়াম':'🪟','সিসিটিভি ও নেটওয়ার্ক':'📹','সেলাই ও দর্জি':'🧵','গাড়ি মেরামত':'🚗','মোটরসাইকেল মেকানিক':'🏍️','জেনারেটর / আইপিএস সার্ভিস':'🔋','লন্ড্রি ও ইস্ত্রি':'👕','বাগান পরিচর্যা':'🌱','ক্যাটারিং / রান্নার সেবা':'🍲','ইভেন্ট সাজসজ্জা':'🎉','ফটোগ্রাফি / ভিডিও':'📷','গ্রাফিক ডিজাইন':'🎨','আইটি ও অনলাইন সাপোর্ট':'🖥️','বাসা বদল / মুভিং':'📦','সোলার প্যানেল সার্ভিস':'☀️','স্যানিটারি ও বাথরুম ফিটিং':'🚿','টিভি ও ইলেকট্রনিক্স মেরামত':'📺','পানির পাম্প সার্ভিস':'💧','ফার্নিচার মেরামত':'🛋️','সেলুন / পার্লার':'💇'};
 const LOCAL_CATEGORIES = Object.keys(icons);
@@ -49,8 +50,8 @@ function updateNav() {
   const login = document.getElementById('nav-login');
   const signup = document.getElementById('nav-signup');
   if (login) {
-    login.textContent = user ? 'আমার ড্যাশবোর্ড' : 'লগইন';
-    login.href = user ? '#dashboard' : '#login';
+    login.textContent = user ? 'আমার প্রোফাইল' : 'লগইন';
+    login.href = user ? '#profile' : '#login';
   }
   if (signup) {
     signup.textContent = user ? 'লগআউট' : 'অ্যাকাউন্ট খুলুন';
@@ -142,7 +143,7 @@ function serviceCard(item) {
   return '<article class="service-card"><div class="service-meta"><span class="tag">' + esc(item.category_name || 'সেবা') + '</span><span class="tag">' + esc(item.district || 'এলাকা উল্লেখ নেই') + '</span></div><h3>' + esc(item.title) + '</h3><p>' + esc(item.description || 'সেবার বিস্তারিত তথ্য দেওয়া হয়নি।') + '</p><div class="muted" style="font-size:12px;margin-bottom:12px">🧰 ' + esc(item.business_name || 'সেবাদাতা') + ' · ' + esc(item.area || 'এলাকা উল্লেখ নেই') + '</div><div class="card-bottom"><span class="price">' + esc(money(item.price_from)) + '</span><a class="btn btn-small" href="#service/' + encodeURIComponent(item.id) + '">বিস্তারিত</a></div></article>';
 }
 function homePage() {
-  return '<section class="hero"><div class="container hero-grid"><div><div class="eyebrow">LOCAL SERVICE FINDER BD</div><h1>দরকারি সেবা,<br>এবার নিজের এলাকাতেই।</h1><p>ইলেকট্রিশিয়ান, প্লাম্বার, টিউটর থেকে শুরু করে নানা ধরনের স্থানীয় সেবাদাতার সঙ্গে যোগাযোগের সহজ প্ল্যাটফর্ম। কাজ খুঁজুন অথবা নিজের দক্ষতা দিয়ে কাজের সুযোগ তৈরি করুন।</p><div class="hero-actions"><a class="btn" href="#find">সেবা খুঁজে দেখুন <span>→</span></a><a class="btn btn-outline" href="#provider-start">সেবাদাতা হিসেবে যোগ দিন</a>' + (user ? '<a class="btn btn-quiet" href="#dashboard">Continue as ' + esc(profile && profile.full_name || user.email || 'আপনার অ্যাকাউন্ট') + ' →</a>' : '') + '</div><div class="hero-note">যাচাই ছাড়া কাউকে অনুমোদিত সেবাদাতা হিসেবে দেখানো হবে না।</div></div><div class="visual-panel"><div class="visual-pin">আপনার এলাকার সেবা</div><div class="visual-tile"><div class="icon">🔧</div><b>দক্ষ কারিগর</b><span>মেরামত ও রক্ষণাবেক্ষণ</span></div><div class="visual-tile"><div class="icon">📍</div><b>এলাকাভিত্তিক খোঁজ</b><span>জেলা ও এলাকা নির্বাচন</span></div><div class="visual-tile"><div class="icon">🤝</div><b>সরাসরি অনুরোধ</b><span>কাজের বিবরণ পাঠান</span></div><div class="visual-tile"><div class="icon">🛡️</div><b>যাচাইয়ের ধাপ</b><span>অনুমোদনের পর তালিকাভুক্ত</span></div></div></div></section><div class="trust-strip"><div class="container trust-grid"><div class="trust-item"><strong>01</strong> প্রয়োজন অনুযায়ী সেবা খুঁজুন</div><div class="trust-item"><strong>02</strong> এলাকার তথ্য মিলিয়ে নিন</div><div class="trust-item"><strong>03</strong> কাজের অনুরোধ পাঠান</div></div></div><section class="section"><div class="container"><div class="section-head"><div class="eyebrow">দুইভাবে ব্যবহার করুন</div><h2>আপনি কোন ভূমিকায় আছেন?</h2><p>নিজের প্রয়োজন অনুযায়ী সঠিক পথে শুরু করুন।</p></div><div class="role-grid"><article class="role-card"><div class="icon">🔎</div><h3>আমার সেবা প্রয়োজন</h3><p>এলাকা ও কাজের ধরন বেছে নিয়ে সেবাদাতাদের তালিকা দেখুন। প্রোফাইল যাচাই করে কাজের অনুরোধ পাঠান।</p><a class="text-link" href="#signup-customer">সেবাগ্রহীতা অ্যাকাউন্ট খুলুন →</a></article><article class="role-card"><div class="icon">🧰</div><h3>আমি সেবা দিতে চাই</h3><p>নিজের দক্ষতা, কাজের বিবরণ ও সার্ভিস এলাকা দিয়ে প্রোফাইল তৈরি করুন। যাচাই শেষে সেবার তালিকায় যুক্ত হোন।</p><a class="text-link" href="#signup-provider">সেবাদাতা হিসেবে যোগ দিন →</a></article></div></div></section><section class="section" style="background:#f0f5f0"><div class="container"><div class="section-head"><div class="eyebrow">জনপ্রিয় ক্যাটাগরি</div><h2>কোন সেবাটি খুঁজছেন?</h2><p>ক্যাটাগরি বেছে নিয়ে সেবার তালিকায় যান।</p></div><div class="category-grid">' + Object.keys(icons).slice(0,8).map(name => '<a class="category-card" href="#find?category=' + encodeURIComponent(name) + '"><span class="icon">' + icons[name] + '</span><b>' + esc(name) + '</b></a>').join('') + '</div></div></section><section class="section"><div class="container"><div class="cta-band"><div><h2>আপনার দক্ষতাই হতে পারে পরবর্তী সুযোগ</h2><p>সেবাদাতা হিসেবে নিবন্ধন করে নিজের কাজের পরিচিতি তৈরি করুন।</p></div><a class="btn" href="#provider-start">প্রোফাইল তৈরি করুন →</a></div></div></section>';
+  return '<section class="hero"><div class="container hero-grid"><div><div class="eyebrow">LOCAL SERVICE FINDER BD</div><h1>দরকারি সেবা,<br>এবার নিজের এলাকাতেই।</h1><p>ইলেকট্রিশিয়ান, প্লাম্বার, টিউটর থেকে শুরু করে নানা ধরনের স্থানীয় সেবাদাতার সঙ্গে যোগাযোগের সহজ প্ল্যাটফর্ম। কাজ খুঁজুন অথবা নিজের দক্ষতা দিয়ে কাজের সুযোগ তৈরি করুন।</p><div class="hero-actions"><a class="btn" href="#find">সেবা খুঁজে দেখুন <span>→</span></a><a class="btn btn-outline" href="#provider-start">সেবাদাতা হিসেবে যোগ দিন</a>' + (user ? '<a class="btn btn-quiet" href="#profile">Continue as ' + esc(profile && profile.full_name || user.email || 'আপনার অ্যাকাউন্ট') + ' →</a>' : '') + '</div><div class="hero-note">যাচাই ছাড়া কাউকে অনুমোদিত সেবাদাতা হিসেবে দেখানো হবে না।</div></div><div class="visual-panel"><div class="visual-pin">আপনার এলাকার সেবা</div><div class="visual-tile"><div class="icon">🔧</div><b>দক্ষ কারিগর</b><span>মেরামত ও রক্ষণাবেক্ষণ</span></div><div class="visual-tile"><div class="icon">📍</div><b>এলাকাভিত্তিক খোঁজ</b><span>জেলা ও এলাকা নির্বাচন</span></div><div class="visual-tile"><div class="icon">🤝</div><b>সরাসরি অনুরোধ</b><span>কাজের বিবরণ পাঠান</span></div><div class="visual-tile"><div class="icon">🛡️</div><b>যাচাইয়ের ধাপ</b><span>অনুমোদনের পর তালিকাভুক্ত</span></div></div></div></section><div class="trust-strip"><div class="container trust-grid"><div class="trust-item"><strong>01</strong> প্রয়োজন অনুযায়ী সেবা খুঁজুন</div><div class="trust-item"><strong>02</strong> এলাকার তথ্য মিলিয়ে নিন</div><div class="trust-item"><strong>03</strong> কাজের অনুরোধ পাঠান</div></div></div><section class="section"><div class="container"><div class="section-head"><div class="eyebrow">দুইভাবে ব্যবহার করুন</div><h2>আপনি কোন ভূমিকায় আছেন?</h2><p>নিজের প্রয়োজন অনুযায়ী সঠিক পথে শুরু করুন।</p></div><div class="role-grid"><article class="role-card"><div class="icon">🔎</div><h3>আমার সেবা প্রয়োজন</h3><p>এলাকা ও কাজের ধরন বেছে নিয়ে সেবাদাতাদের তালিকা দেখুন। প্রোফাইল যাচাই করে কাজের অনুরোধ পাঠান।</p><a class="text-link" href="#signup-customer">সেবাগ্রহীতা অ্যাকাউন্ট খুলুন →</a></article><article class="role-card"><div class="icon">🧰</div><h3>আমি সেবা দিতে চাই</h3><p>নিজের দক্ষতা, কাজের বিবরণ ও সার্ভিস এলাকা দিয়ে প্রোফাইল তৈরি করুন। যাচাই শেষে সেবার তালিকায় যুক্ত হোন।</p><a class="text-link" href="#signup-provider">সেবাদাতা হিসেবে যোগ দিন →</a></article></div></div></section><section class="section" style="background:#f0f5f0"><div class="container"><div class="section-head"><div class="eyebrow">জনপ্রিয় ক্যাটাগরি</div><h2>কোন সেবাটি খুঁজছেন?</h2><p>ক্যাটাগরি বেছে নিয়ে সেবার তালিকায় যান।</p></div><div class="category-grid">' + Object.keys(icons).slice(0,8).map(name => '<a class="category-card" href="#find?category=' + encodeURIComponent(name) + '"><span class="icon">' + icons[name] + '</span><b>' + esc(name) + '</b></a>').join('') + '</div></div></section><section class="section"><div class="container"><div class="cta-band"><div><h2>আপনার দক্ষতাই হতে পারে পরবর্তী সুযোগ</h2><p>সেবাদাতা হিসেবে নিবন্ধন করে নিজের কাজের পরিচিতি তৈরি করুন।</p></div><a class="btn" href="#provider-start">প্রোফাইল তৈরি করুন →</a></div></div></section>';
 }
 function authPage(kind) {
   const isProvider = kind === 'signup-provider';
@@ -152,7 +153,10 @@ function authPage(kind) {
       const emailLine = user.email ? '<p class="hint">' + esc(user.email) + '</p>' : '';
       return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc((profile && profile.full_name || user.email || 'U').slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">Continue as ' + displayName + '</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div><p class="hint" style="margin-top:16px">আপনার পাসওয়ার্ড এই সাইটে সেভ করা হয় না। লগইন ধরে রাখতে Supabase-এর সুরক্ষিত সেশন ব্যবহার করা হয়।</p></div></div></section>';
     }
-    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আপনার অ্যাকাউন্টে প্রবেশ করুন</h1><p>নিবন্ধিত ইমেইল ও পাসওয়ার্ড ব্যবহার করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label>ইমেইল</label><input name="email" type="email" required autocomplete="email" placeholder="আপনার ইমেইল"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required autocomplete="current-password" placeholder="পাসওয়ার্ড"></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p></div></div></section>';
+    if (pendingOtpEmail) {
+      return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">EMAIL VERIFICATION</div><h1>ইমেইলে পাঠানো কোড দিন</h1><p>' + esc(pendingOtpEmail) + ' ঠিকানায় ৬ সংখ্যার OTP পাঠানো হয়েছে। ইনবক্স ও স্প্যাম ফোল্ডার দেখুন।</p></div><form id="otp-form" class="form-grid"><div class="field full"><label>৬ সংখ্যার OTP</label><input name="token" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="000000" aria-label="৬ সংখ্যার OTP"></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>কোড যাচাই করে লগইন করুন</button></div></form><div class="form-actions"><button type="button" class="btn btn-outline" id="resend-otp" ' + (!db ? 'disabled' : '') + '>আবার OTP পাঠান</button><button type="button" class="btn btn-quiet" id="change-email">ইমেইল পরিবর্তন</button></div><p class="hint">কোডটি কাউকে দেবেন না। ChatGPT বা সাইটের কোনো কর্মীও OTP চাইবে না।</p></div></div></section>';
+    }
+    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>সহজে লগইন করুন</h1><p>আপনার নিবন্ধিত ইমেইলে একবার ব্যবহারযোগ্য কোড পাঠানো হবে।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>ইমেইলে OTP পাঠান</button></div></form><p class="hint">পাসওয়ার্ড মনে রাখার দরকার নেই। আগে অ্যাকাউন্ট খুলে থাকলেই OTP দিয়ে প্রবেশ করতে পারবেন।</p><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p></div></div></section>';
   }
   return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>সঠিক তথ্য দিন। আপনার অ্যাকাউন্ট নিরাপদে তৈরি হবে।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
 }
@@ -289,7 +293,10 @@ async function dashboardPage() {
 async function accountPage() {
   if (!user) { go('login'); return; }
   await loadProfile();
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">ACCOUNT SETTINGS</div><h1>প্রোফাইল তথ্য</h1><p>আপনার যোগাযোগ ও এলাকার তথ্য হালনাগাদ করুন।</p></div><form id="account-form" class="form-grid">'+formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',false) + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form></div></div></section>';
+  const displayName = profile && profile.full_name || 'আপনার নাম';
+  const roleLabel = profile && profile.user_type === 'provider' ? 'সেবাদাতা অ্যাকাউন্ট' : 'সেবাগ্রহীতা অ্যাকাউন্ট';
+  const emailText = user.email || 'ইমেইল যুক্ত নেই';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="profile-top" style="margin-bottom:18px"><div class="profile-avatar">'+esc(displayName.slice(0,1).toUpperCase())+'</div><div><div class="eyebrow">MY PROFILE</div><h1>'+esc(displayName)+'</h1><p>'+esc(emailText)+'</p><p class="hint">'+esc(roleLabel)+'</p></div></div><div class="form-actions" style="margin:0 0 22px"><a class="btn btn-outline" href="#dashboard">আমার ড্যাশবোর্ড</a><a class="btn btn-quiet" href="#logout">লগআউট</a></div><div class="page-head"><div class="eyebrow">PROFILE SETTINGS</div><h2>প্রোফাইল তথ্য</h2><p>আপনার নাম, যোগাযোগ ও এলাকার তথ্য হালনাগাদ করুন।</p></div><form id="account-form" class="form-grid">'+formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',false) + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form></div></div></section>';
   const form=document.getElementById('account-form');
   attachLocationSelectors(form, profile && profile.district || '', profile && profile.area || '');
   form.elements.full_name.value=profile && profile.full_name || '';
@@ -344,23 +351,60 @@ async function signUp(form) {
     form.reset();
   }
 }
-async function signIn(form) {
+async function requestEmailOtp(email) {
   if (!db) return;
-  const data=new FormData(form);
-  const result=await db.auth.signInWithPassword({email:String(data.get('email')).trim(),password:String(data.get('password'))});
-  if(result.error){toast('লগইন হয়নি: '+result.error.message);return;}
-  user=result.data.user;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) { toast('আপনার ইমেইল ঠিকানা লিখুন।'); return; }
+  const result = await db.auth.signInWithOtp({
+    email: normalizedEmail,
+    options: { shouldCreateUser: false }
+  });
+  if (result.error) {
+    toast('OTP পাঠানো যায়নি: ' + result.error.message);
+    return;
+  }
+  pendingOtpEmail = normalizedEmail;
+  toast('ইমেইলে OTP পাঠানো হয়েছে। ইনবক্স ও স্প্যাম ফোল্ডার দেখুন।');
+  await render();
+}
+
+async function sendLoginOtp(form) {
+  const data = new FormData(form);
+  await requestEmailOtp(data.get('email'));
+}
+
+async function resendLoginOtp() {
+  if (!pendingOtpEmail) return;
+  await requestEmailOtp(pendingOtpEmail);
+}
+
+async function verifyLoginOtp(form) {
+  if (!db || !pendingOtpEmail) return;
+  const data = new FormData(form);
+  const token = String(data.get('token') || '').replace(/\\D/g, '');
+  if (!/^[0-9]{6}$/.test(token)) { toast('৬ সংখ্যার সঠিক OTP লিখুন।'); return; }
+  const result = await db.auth.verifyOtp({
+    email: pendingOtpEmail,
+    token,
+    type: 'email'
+  });
+  if (result.error) {
+    toast('কোডটি সঠিক নয় বা মেয়াদ শেষ হয়েছে। আবার চেষ্টা করুন।');
+    return;
+  }
+  user = result.data.user;
+  pendingOtpEmail = '';
   await ensureProfile();
   toast('লগইন সফল হয়েছে।');
-  const destination=afterLoginPath;
-  afterLoginPath='dashboard';
+  const destination = afterLoginPath || 'profile';
+  afterLoginPath = 'profile';
   go(destination);
 }
 async function signOut() {
   if (!db) return;
   const result=await db.auth.signOut({scope:'local'});
   if(result.error){toast('লগআউট হয়নি: '+result.error.message);return;}
-  user=null;profile=null;afterLoginPath='dashboard';
+  user=null;profile=null;pendingOtpEmail='';afterLoginPath='profile';
   toast('এই ডিভাইস থেকে লগআউট হয়েছে।');
   go('home');
 }
@@ -409,13 +453,13 @@ async function saveAccount(form) {
     const providerUpdate = await db.from('provider_profiles').update({district:String(d.get('district')||'').trim(),area:String(d.get('area')||'').trim()}).eq('user_id',user.id);
     if (providerUpdate.error) { toast('এলাকার তথ্য সেবাদাতা প্রোফাইলে আপডেট হয়নি: '+providerUpdate.error.message); return; }
   }
-  await loadProfile();toast('প্রোফাইল আপডেট হয়েছে।');go('dashboard');
+  await loadProfile();toast('প্রোফাইল আপডেট হয়েছে।');go('profile');
 }
 function bindForms() {
   const continueButton = document.getElementById('continue-session');
   if (continueButton) continueButton.addEventListener('click', () => {
-    const destination = afterLoginPath || 'dashboard';
-    afterLoginPath = 'dashboard';
+    const destination = afterLoginPath || 'profile';
+    afterLoginPath = 'profile';
     go(destination);
   });
   const switchButton = document.getElementById('switch-account');
@@ -425,12 +469,20 @@ function bindForms() {
     if (result.error) { toast('অ্যাকাউন্ট বদলানো যায়নি: '+result.error.message); return; }
     user = null;
     profile = null;
-    afterLoginPath = 'dashboard';
-    toast('এই ডিভাইস থেকে লগআউট হয়েছে। অন্য অ্যাকাউন্ট দিয়ে লগইন করুন।');
+    afterLoginPath = 'profile';
+    pendingOtpEmail = '';
+    toast('এই ডিভাইস থেকে লগআউট হয়েছে। অন্য অ্যাকাউন্ট দিয়ে OTP লগইন করুন।');
     await render();
   });
+  const resendButton = document.getElementById('resend-otp');
+  if (resendButton) resendButton.addEventListener('click', resendLoginOtp);
+  const changeEmailButton = document.getElementById('change-email');
+  if (changeEmailButton) changeEmailButton.addEventListener('click', () => {
+    pendingOtpEmail = '';
+    render();
+  });
   const handlers={
-    'signup-form':signUp,'login-form':signIn,'provider-form':saveProvider,
+    'signup-form':signUp,'login-form':sendLoginOtp,'otp-form':verifyLoginOtp,'provider-form':saveProvider,
     'request-form':sendRequest,'account-form':saveAccount
   };
   Object.keys(handlers).forEach(id=>{
@@ -455,7 +507,7 @@ async function render() {
     else if (r.name==='service') await servicePage(decodeURIComponent(r.id));
     else if (r.name==='request') await requestPage(decodeURIComponent(r.id));
     else if (r.name==='dashboard') await dashboardPage();
-    else if (r.name==='account') await accountPage();
+    else if (r.name==='account' || r.name==='profile') await accountPage();
     else if (r.name==='admin') await adminPage();
     else if (r.name==='how') await howPage();
     else if (r.name==='logout') await signOut();
