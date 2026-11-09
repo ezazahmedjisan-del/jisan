@@ -381,7 +381,7 @@ async function resendLoginOtp() {
 async function verifyLoginOtp(form) {
   if (!db || !pendingOtpEmail) return;
   const data = new FormData(form);
-  const token = String(data.get('token') || '').replace(/\\D/g, '');
+  const token = String(data.get('token') || '').replace(/\D/g, '');
   if (!/^[0-9]{6}$/.test(token)) { toast('৬ সংখ্যার সঠিক OTP লিখুন।'); return; }
   const result = await db.auth.verifyOtp({
     email: pendingOtpEmail,
