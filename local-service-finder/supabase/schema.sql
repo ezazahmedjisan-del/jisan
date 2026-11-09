@@ -101,6 +101,43 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
 for each row execute procedure public.handle_new_user();
 
+create or replace function public.protect_profile_role()
+returns trigger language plpgsql security definer set search_path = public
+as $
+begin
+  if old.user_type is distinct from new.user_type and not public.is_admin() then
+    raise exception 'Only an administrator can change account type';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists protect_profile_role on public.profiles;
+create trigger protect_profile_role before update on public.profiles
+for each row execute procedure public.protect_profile_role();
+
+create or replace function public.validate_service_request()
+returns trigger language plpgsql security definer set search_path = public
+as $
+begin
+  if not exists (
+    select 1 from public.services s
+    join public.provider_profiles pp on pp.user_id = s.provider_id
+    where s.id = new.service_id
+      and s.provider_id = new.provider_id
+      and s.status = 'approved'
+      and pp.approval_status = 'approved'
+  ) then
+    raise exception 'This service is not available for new requests';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists validate_service_request on public.service_requests;
+create trigger validate_service_request before insert on public.service_requests
+for each row execute procedure public.validate_service_request();
+
 create or replace function public.protect_approval_fields()
 returns trigger language plpgsql security definer set search_path = public
 as $$
@@ -193,7 +230,7 @@ create policy "admin list admin users" on public.admin_users for select to authe
 
 -- Public directory view deliberately excludes phone numbers and private contact details.
 create or replace view public.public_services as
-select s.id,s.title,s.description,s.price_from,s.price_type,s.created_at,
+select s.id,s.category_id,s.title,s.description,s.price_from,s.price_type,s.created_at,
        c.name as category_name,c.icon as category_icon,
        pp.user_id as provider_id,pp.business_name,pp.bio,pp.experience_years,
        p.district,p.area
@@ -205,7 +242,8 @@ where pp.approval_status = 'approved' and s.status = 'approved';
 
 grant usage on schema public to anon,authenticated;
 grant select on public.categories,public.public_services to anon,authenticated;
-grant select,update on public.profiles to authenticated;
+grant select on public.profiles to authenticated;
+grant update(full_name,phone,district,area) on public.profiles to authenticated;
 grant insert,select,update on public.provider_profiles to authenticated;
 grant insert,select,update on public.services to authenticated;
 grant select,insert,update on public.service_requests to authenticated;
