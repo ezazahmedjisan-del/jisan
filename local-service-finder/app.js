@@ -13,7 +13,9 @@ let categories = [];
 let toastTimer = null;
 let afterLoginPath = 'dashboard';
 
-const icons = {'ইলেকট্রিশিয়ান':'💡','প্লাম্বার':'🚿','টিউটর':'📚','এসি মেকানিক':'❄️','ক্লিনিং':'🧹','পেইন্টার':'🖌️','কম্পিউটার সার্ভিস':'💻','মিস্ত্রি':'🧱','ফ্রিজ মেকানিক':'🧊'};
+const icons = {'ইলেকট্রিশিয়ান':'💡','প্লাম্বার':'🚿','টিউটর':'📚','এসি মেকানিক':'❄️','ক্লিনিং':'🧹','পেইন্টার':'🖌️','কম্পিউটার সার্ভিস':'💻','মিস্ত্রি':'🧱','ফ্রিজ মেকানিক':'🧊','মোবাইল সার্ভিসিং':'📱','কার্পেন্টার / কাঠমিস্ত্রি':'🪚','ওয়েল্ডিং':'🛠️','টাইলস মিস্ত্রি':'🧱','গ্লাস ও অ্যালুমিনিয়াম':'🪟','সিসিটিভি ও নেটওয়ার্ক':'📹','সেলাই ও দর্জি':'🧵','গাড়ি মেরামত':'🚗','মোটরসাইকেল মেকানিক':'🏍️','জেনারেটর / আইপিএস সার্ভিস':'🔋','লন্ড্রি ও ইস্ত্রি':'👕','বাগান পরিচর্যা':'🌱','ক্যাটারিং / রান্নার সেবা':'🍲','ইভেন্ট সাজসজ্জা':'🎉','ফটোগ্রাফি / ভিডিও':'📷','গ্রাফিক ডিজাইন':'🎨','আইটি ও অনলাইন সাপোর্ট':'🖥️','বাসা বদল / মুভিং':'📦','সোলার প্যানেল সার্ভিস':'☀️','স্যানিটারি ও বাথরুম ফিটিং':'🚿','টিভি ও ইলেকট্রনিক্স মেরামত':'📺','পানির পাম্প সার্ভিস':'💧','ফার্নিচার মেরামত':'🛋️','সেলুন / পার্লার':'💇'};
+const LOCAL_CATEGORIES = Object.keys(icons);
+const bdLocations = window.BD_LOCATION_DATA || [];
 const statusLabels = {pending:'অপেক্ষমাণ',approved:'অনুমোদিত',rejected:'বাতিল',paused:'বিরত',accepted:'গৃহীত',declined:'প্রত্যাখ্যাত',completed:'সম্পন্ন',cancelled:'বাতিল'};
 
 function esc(value) {
@@ -84,6 +86,41 @@ function categoryOptions(selected) {
     '<option value="' + esc(c.id) + '"' + (String(selected || '') === String(c.id) ? ' selected' : '') + '>' + esc(c.name) + '</option>'
   ).join('');
 }
+
+function districtSelectField(label, name, required, includeAll) {
+  const first = includeAll ? '<option value="">সব জেলা</option>' : '<option value="">জেলা বেছে নিন</option>';
+  const options = bdLocations.map(d => '<option value="' + esc(d.name) + '">' + esc(d.name) + '</option>').join('');
+  return selectField(label, name, first + options, required);
+}
+function areaSelectField(label, name, required, includeAll) {
+  const first = includeAll ? '<option value="">সব উপজেলা / থানা</option>' : '<option value="">উপজেলা / থানা বেছে নিন</option>';
+  return selectField(label, name, first, required);
+}
+function areasForDistrict(districtName, allowAllAreas) {
+  if (!districtName) return allowAllAreas ? bdLocations.flatMap(d => d.areas.map(a => ({name:a, district:d.name}))) : [];
+  const district = bdLocations.find(d => d.name === districtName);
+  return district ? district.areas.map(a => ({name:a, district:district.name})) : [];
+}
+function attachLocationSelectors(root, selectedDistrict, selectedArea, allowAllAreas) {
+  if (!root) return;
+  const district = root.querySelector('[name="district"]');
+  const area = root.querySelector('[name="area"]');
+  if (!district || !area) return;
+  if (selectedDistrict) district.value = selectedDistrict;
+  const fillAreas = preserveValue => {
+    const keep = preserveValue !== undefined ? preserveValue : area.value;
+    const rows = areasForDistrict(district.value, !!allowAllAreas);
+    let html = '<option value="">' + (allowAllAreas ? 'সব উপজেলা / থানা' : 'উপজেলা / থানা বেছে নিন') + '</option>';
+    html += rows.map(row => '<option value="' + esc(row.name) + '">' + esc(row.name) + '</option>').join('');
+    if (keep && !rows.some(row => row.name === keep)) html += '<option value="' + esc(keep) + '">' + esc(keep) + ' (আগের তথ্য)</option>';
+    area.innerHTML = html;
+    area.disabled = !district.value && !allowAllAreas;
+    if (keep) area.value = keep;
+  };
+  fillAreas(selectedArea || '');
+  district.addEventListener('change', () => fillAreas(''));
+}
+
 function emptyState(title, text, icon) {
   return '<div class="empty-state"><div class="icon">' + (icon || '🔎') + '</div><h3>' + esc(title) + '</h3><p>' + esc(text) + '</p></div>';
 }
@@ -108,12 +145,15 @@ async function findPage() {
     const cr = await db.from('categories').select('id,name,icon').order('name');
     if (!cr.error) { categories = cr.data || []; cats = categories; }
   }
+  if (!cats.length) cats = LOCAL_CATEGORIES.map((name, i) => ({id:String(i + 1), name}));
   let html = '<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">SERVICE DIRECTORY</div><h1>আপনার এলাকার সেবাদাতা খুঁজুন</h1><p>ক্যাটাগরি, জেলা বা কাজের নাম দিয়ে খুঁজুন।</p></div><form class="panel search-panel" id="search-form"><div class="search-grid">' +
     selectField('সেবার ধরন','category_id','<option value="">সব ক্যাটাগরি</option>' + cats.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join(''),false) +
-    selectField('জেলা','district','<option value="">সব জেলা</option><option>গাজীপুর</option><option>ঢাকা</option><option>নারায়ণগঞ্জ</option><option>নরসিংদী</option><option>ময়মনসিংহ</option><option>কিশোরগঞ্জ</option><option>টাঙ্গাইল</option>',false) +
-    '<div class="field"><label>এলাকা</label><input name="area" placeholder="যেমন: টঙ্গী, জয়দেবপুর"></div><div class="field"><label>কাজ বা সেবার নাম</label><input name="q" placeholder="যেমন: বাসার ওয়্যারিং"></div><button class="btn" type="submit">খুঁজুন ⌕</button></div></form><div class="results-head"><div><h2>অনুমোদিত সেবা</h2><p id="results-count">সেবাদাতার তালিকা লোড হচ্ছে…</p></div></div><div id="service-results" class="service-grid"><div class="loading-screen"><span class="spinner"></span><p>সেবা খোঁজা হচ্ছে…</p></div></div></div></section>';
+    districtSelectField('জেলা','district',false,true) +
+    areaSelectField('উপজেলা / থানা','area',false,true) +
+    '<div class="field"><label>কাজ বা সেবার নাম</label><input name="q" placeholder="যেমন: বাসার ওয়্যারিং"></div><button class="btn" type="submit">খুঁজুন ⌕</button></div></form><div class="results-head"><div><h2>অনুমোদিত সেবা</h2><p id="results-count">সেবাদাতার তালিকা লোড হচ্ছে…</p></div></div><div id="service-results" class="service-grid"><div class="loading-screen"><span class="spinner"></span><p>সেবা খোঁজা হচ্ছে…</p></div></div></div></section>';
   app.innerHTML = html;
   const form = document.getElementById('search-form');
+  attachLocationSelectors(form, query.get('district') || '', query.get('area') || '', true);
   if (query.get('category')) {
     const match = cats.find(c=>c.name===query.get('category'));
     if (match) form.elements.category_id.value = String(match.id);
@@ -169,7 +209,8 @@ async function requestPage(serviceId) {
   const result = await db.from('public_services').select('*').eq('id',serviceId).maybeSingle();
   if (result.error || !result.data) { app.innerHTML = emptyState('সেবাটি পাওয়া যায়নি','সেবাটির অনুমোদন বা তথ্য যাচাই করুন।'); return; }
   const s = result.data;
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="crumb"><a href="#service/'+encodeURIComponent(serviceId)+'">সেবার বিস্তারিত</a> / অনুরোধ</div><div class="page-head"><div class="eyebrow">SERVICE REQUEST</div><h1>কাজের অনুরোধ পাঠান</h1><p>'+esc(s.business_name)+' — '+esc(s.title)+'</p></div><form id="request-form" data-provider="'+esc(s.provider_id)+'" data-service="'+esc(s.id)+'" class="form-grid"><div class="field full"><label>কাজের বিস্তারিত</label><textarea name="message" required minlength="10" placeholder="কী কাজ প্রয়োজন, সমস্যাটি কোথায়, বিস্তারিত লিখুন…"></textarea></div>'+formField('আপনার যোগাযোগ নম্বর','contact_phone','tel','01XXXXXXXXX',true,'pattern="^(?:\\+?88)?01[3-9][0-9]{8}$" maxlength="14"') + formField('কাজের সম্ভাব্য তারিখ','preferred_date','date','',false) + formField('জেলা','district','text',profile && profile.district || 'আপনার জেলা',true) + formField('এলাকা','area','text',profile && profile.area || 'আপনার এলাকা',true) + '<div class="field full"><button class="btn" type="submit">অনুরোধ পাঠান</button></div></form><div class="hint">আপনার নম্বর শুধুমাত্র এই কাজের অনুরোধের সঙ্গে যুক্ত থাকবে। অন্যদের পাবলিক প্রোফাইলে দেখানো হবে না।</div></div></div></section>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="crumb"><a href="#service/'+encodeURIComponent(serviceId)+'">সেবার বিস্তারিত</a> / অনুরোধ</div><div class="page-head"><div class="eyebrow">SERVICE REQUEST</div><h1>কাজের অনুরোধ পাঠান</h1><p>'+esc(s.business_name)+' — '+esc(s.title)+'</p></div><form id="request-form" data-provider="'+esc(s.provider_id)+'" data-service="'+esc(s.id)+'" class="form-grid"><div class="field full"><label>কাজের বিস্তারিত</label><textarea name="message" required minlength="10" placeholder="কী কাজ প্রয়োজন, সমস্যাটি কোথায়, বিস্তারিত লিখুন…"></textarea></div>'+formField('আপনার যোগাযোগ নম্বর','contact_phone','tel','01XXXXXXXXX',true,'pattern="^(?:\\+?88)?01[3-9][0-9]{8}$" maxlength="14"') + formField('কাজের সম্ভাব্য তারিখ','preferred_date','date','',false) + districtSelectField('জেলা','district',true,false) + areaSelectField('উপজেলা / থানা','area',true,false) + '<div class="field full"><button class="btn" type="submit">অনুরোধ পাঠান</button></div></form><div class="hint">আপনার নম্বর শুধুমাত্র এই কাজের অনুরোধের সঙ্গে যুক্ত থাকবে। অন্যদের পাবলিক প্রোফাইলে দেখানো হবে না।</div></div></div></section>';
+  attachLocationSelectors(document.getElementById('request-form'), profile && profile.district || '', profile && profile.area || '');
 }
 async function providerStartPage() {
   if (!user) {
@@ -191,7 +232,8 @@ async function providerStartPage() {
     const cr = await db.from('categories').select('id,name').order('name');
     if (!cr.error) categories = cr.data || [];
   }
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">PROVIDER PROFILE</div><h1>আপনার সেবার পরিচিতি দিন</h1><p>তথ্য জমা দিলে যাচাইয়ের জন্য অপেক্ষায় থাকবে। অনুমোদিত না হওয়া পর্যন্ত পাবলিক তালিকায় দেখাবে না।</p></div><form id="provider-form" class="form-grid">' + formField('প্রতিষ্ঠান / সেবার নাম','business_name','text','যেমন: জিসান ইলেকট্রিক সার্ভিস',true) + formField('অভিজ্ঞতা (বছর)','experience_years','number','যেমন: ৩',true,'min="0" max="60"') + formField('জেলা','district','text','আপনার জেলা',true) + formField('এলাকা','area','text','যেমন: জয়দেবপুর / টঙ্গী',true) + '<div class="field full"><label>আপনার পরিচিতি ও দক্ষতা</label><textarea name="bio" required minlength="20" placeholder="কোন ধরনের কাজ করেন, কী অভিজ্ঞতা আছে…"></textarea></div>' + selectField('প্রধান সেবার ধরন','category_id',categoryOptions(),true) + formField('সেবার শিরোনাম','title','text','যেমন: বাসাবাড়ির বৈদ্যুতিক মেরামত',true) + '<div class="field full"><label>সেবার বিস্তারিত</label><textarea name="description" required minlength="20" placeholder="কী কী কাজ করেন এবং কীভাবে সেবা দেন…"></textarea></div>' + formField('শুরুর মূল্য (টাকা)','price_from','number','যেমন: ৫০০',false,'min="0" step="1"') + selectField('মূল্যের ধরন','price_type','<option value="negotiable">আলোচনা সাপেক্ষে</option><option value="starting">শুরু ৳… থেকে</option><option value="fixed">নির্দিষ্ট মূল্য</option>',true) + '<div class="field full"><button class="btn" type="submit">প্রোফাইল জমা দিন</button></div></form></div></div></section>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">PROVIDER PROFILE</div><h1>আপনার সেবার পরিচিতি দিন</h1><p>তথ্য জমা দিলে যাচাইয়ের জন্য অপেক্ষায় থাকবে। অনুমোদিত না হওয়া পর্যন্ত পাবলিক তালিকায় দেখাবে না।</p></div><form id="provider-form" class="form-grid">' + formField('প্রতিষ্ঠান / সেবার নাম','business_name','text','যেমন: জিসান ইলেকট্রিক সার্ভিস',true) + formField('অভিজ্ঞতা (বছর)','experience_years','number','যেমন: ৩',true,'min="0" max="60"') + districtSelectField('জেলা','district',true,false) + areaSelectField('উপজেলা / থানা','area',true,false) + '<div class="field full"><label>আপনার পরিচিতি ও দক্ষতা</label><textarea name="bio" required minlength="20" placeholder="কোন ধরনের কাজ করেন, কী অভিজ্ঞতা আছে…"></textarea></div>' + selectField('প্রধান সেবার ধরন','category_id',categoryOptions(),true) + formField('সেবার শিরোনাম','title','text','যেমন: বাসাবাড়ির বৈদ্যুতিক মেরামত',true) + '<div class="field full"><label>সেবার বিস্তারিত</label><textarea name="description" required minlength="20" placeholder="কী কী কাজ করেন এবং কীভাবে সেবা দেন…"></textarea></div>' + formField('শুরুর মূল্য (টাকা)','price_from','number','যেমন: ৫০০',false,'min="0" step="1"') + selectField('মূল্যের ধরন','price_type','<option value="negotiable">আলোচনা সাপেক্ষে</option><option value="starting">শুরু ৳… থেকে</option><option value="fixed">নির্দিষ্ট মূল্য</option>',true) + '<div class="field full"><button class="btn" type="submit">প্রোফাইল জমা দিন</button></div></form></div></div></section>';
+  attachLocationSelectors(document.getElementById('provider-form'));
 }
 async function dashboardPage() {
   if (!user) { go('login'); return; }
@@ -222,12 +264,11 @@ async function dashboardPage() {
 async function accountPage() {
   if (!user) { go('login'); return; }
   await loadProfile();
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">ACCOUNT SETTINGS</div><h1>প্রোফাইল তথ্য</h1><p>আপনার যোগাযোগ ও এলাকার তথ্য হালনাগাদ করুন।</p></div><form id="account-form" class="form-grid">'+formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',false) + formField('জেলা','district','text','আপনার জেলা',false) + formField('এলাকা','area','text','আপনার এলাকা',false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form></div></div></section>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">ACCOUNT SETTINGS</div><h1>প্রোফাইল তথ্য</h1><p>আপনার যোগাযোগ ও এলাকার তথ্য হালনাগাদ করুন।</p></div><form id="account-form" class="form-grid">'+formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',false) + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form></div></div></section>';
   const form=document.getElementById('account-form');
+  attachLocationSelectors(form, profile && profile.district || '', profile && profile.area || '');
   form.elements.full_name.value=profile && profile.full_name || '';
   form.elements.phone.value=profile && profile.phone || '';
-  form.elements.district.value=profile && profile.district || '';
-  form.elements.area.value=profile && profile.area || '';
 }
 async function adminPage() {
   if (!user || !db) { go('login'); return; }
