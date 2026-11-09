@@ -59,6 +59,8 @@ create table if not exists public.provider_profiles (
   user_id uuid primary key references public.profiles(id) on delete cascade,
   business_name text not null,
   bio text not null default '',
+  district text,
+  area text,
   experience_years integer not null default 0 check (experience_years between 0 and 60),
   approval_status text not null default 'pending' check (approval_status in ('pending','approved','rejected')),
   created_at timestamptz not null default now()
@@ -103,106 +105,51 @@ create table if not exists public.admin_users (
 );
 
 create or replace function public.is_admin()
-returns boolean language sql stable security definer set search_path = public
-as $$ select exists(select 1 from public.admin_users where user_id = auth.uid()); $$;
+returns boolean language sql stable security definer set search_path = ''
+as 'select exists(select 1 from public.admin_users where user_id = auth.uid())';
 
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public
-as $$
-begin
-  insert into public.profiles(id,full_name,phone,user_type)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name',''),
-    nullif(new.raw_user_meta_data->>'phone',''),
-    case when new.raw_user_meta_data->>'user_type' = 'provider' then 'provider' else 'customer' end
-  );
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created after insert on auth.users
-for each row execute procedure public.handle_new_user();
+revoke execute on function public.is_admin() from PUBLIC, anon;
+grant execute on function public.is_admin() to authenticated;
 
 create or replace function public.get_provider_contact(p_request_id uuid)
 returns text
 language sql
 stable
 security definer
-set search_path = public
-as $$
-  select p.phone
-  from public.service_requests r
-  join public.profiles p on p.id = r.provider_id
-  where r.id = p_request_id
-    and r.customer_id = auth.uid()
-    and r.status = 'accepted'
-  limit 1;
-$$;
+set search_path = ''
+as 'select p.phone from public.service_requests r
+join public.profiles p on p.id = r.provider_id
+join public.provider_profiles pp on pp.user_id = r.provider_id
+where r.id = p_request_id and r.customer_id = auth.uid()
+and r.status = ''accepted'' and pp.approval_status = ''approved''
+limit 1';
 
+create or replace function public.get_customer_contact(p_request_id uuid)
+returns text language sql stable security definer set search_path = ''
+as 'select r.contact_phone from public.service_requests r
+where r.id = p_request_id and r.provider_id = auth.uid()
+and r.status in (''accepted'',''completed'') limit 1';
+
+create or replace function public.admin_set_provider_status(p_user_id uuid, p_status text)
+returns boolean language sql security definer set search_path = ''
+as 'update public.provider_profiles pp set approval_status = p_status
+where pp.user_id = p_user_id and public.is_admin()
+and p_status in (''approved'',''rejected'') returning true';
+
+create or replace function public.admin_set_service_status(p_service_id uuid, p_status text)
+returns boolean language sql security definer set search_path = ''
+as 'update public.services s set status = p_status
+where s.id = p_service_id and public.is_admin()
+and p_status in (''approved'',''rejected'') returning true';
+
+revoke execute on function public.get_provider_contact(uuid) from PUBLIC, anon;
 grant execute on function public.get_provider_contact(uuid) to authenticated;
-
-create or replace function public.protect_profile_role()
-returns trigger language plpgsql security definer set search_path = public
-as $$
-begin
-  if old.user_type is distinct from new.user_type and not public.is_admin() then
-    raise exception 'Only an administrator can change account type';
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists protect_profile_role on public.profiles;
-create trigger protect_profile_role before update on public.profiles
-for each row execute procedure public.protect_profile_role();
-
-create or replace function public.validate_service_request()
-returns trigger language plpgsql security definer set search_path = public
-as $$
-begin
-  if not exists (
-    select 1 from public.services s
-    join public.provider_profiles pp on pp.user_id = s.provider_id
-    where s.id = new.service_id
-      and s.provider_id = new.provider_id
-      and s.status = 'approved'
-      and pp.approval_status = 'approved'
-  ) then
-    raise exception 'This service is not available for new requests';
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists validate_service_request on public.service_requests;
-create trigger validate_service_request before insert on public.service_requests
-for each row execute procedure public.validate_service_request();
-
-create or replace function public.protect_approval_fields()
-returns trigger language plpgsql security definer set search_path = public
-as $$
-begin
-  if not public.is_admin() then
-    if tg_table_name = 'provider_profiles' and old.approval_status is distinct from new.approval_status then
-      raise exception 'Only an administrator can change provider approval status';
-    end if;
-    if tg_table_name = 'services' and old.status is distinct from new.status then
-      raise exception 'Only an administrator can approve or reject a service';
-    end if;
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists protect_provider_approval on public.provider_profiles;
-create trigger protect_provider_approval before update on public.provider_profiles
-for each row execute procedure public.protect_approval_fields();
-
-drop trigger if exists protect_service_approval on public.services;
-create trigger protect_service_approval before update on public.services
-for each row execute procedure public.protect_approval_fields();
+revoke execute on function public.get_customer_contact(uuid) from PUBLIC, anon;
+grant execute on function public.get_customer_contact(uuid) to authenticated;
+revoke execute on function public.admin_set_provider_status(uuid,text) from PUBLIC, anon;
+grant execute on function public.admin_set_provider_status(uuid,text) to authenticated;
+revoke execute on function public.admin_set_service_status(uuid,text) from PUBLIC, anon;
+grant execute on function public.admin_set_service_status(uuid,text) to authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
@@ -215,6 +162,10 @@ alter table public.admin_users enable row level security;
 drop policy if exists "profiles read own or admin" on public.profiles;
 create policy "profiles read own or admin" on public.profiles for select to authenticated
 using (id = auth.uid() or public.is_admin());
+
+drop policy if exists "profiles insert own" on public.profiles;
+create policy "profiles insert own" on public.profiles for insert to authenticated
+with check (id = auth.uid());
 
 drop policy if exists "profiles update own" on public.profiles;
 create policy "profiles update own" on public.profiles for update to authenticated
@@ -232,6 +183,7 @@ drop policy if exists "provider creates own profile" on public.provider_profiles
 create policy "provider creates own profile" on public.provider_profiles for insert to authenticated
 with check (
   user_id = auth.uid()
+  and approval_status = 'pending'
   and exists(select 1 from public.profiles p where p.id = auth.uid() and p.user_type = 'provider')
 );
 
@@ -255,6 +207,7 @@ drop policy if exists "provider creates own service" on public.services;
 create policy "provider creates own service" on public.services for insert to authenticated
 with check (
   provider_id = auth.uid()
+  and status = 'pending'
   and exists(select 1 from public.provider_profiles pp where pp.user_id = auth.uid())
 );
 
@@ -269,7 +222,17 @@ using (customer_id = auth.uid() or provider_id = auth.uid() or public.is_admin()
 
 drop policy if exists "customer creates own request" on public.service_requests;
 create policy "customer creates own request" on public.service_requests for insert to authenticated
-with check (customer_id = auth.uid());
+with check (
+ customer_id = auth.uid() and status = 'pending'
+ and exists (
+  select 1 from public.services s
+  join public.provider_profiles pp on pp.user_id = s.provider_id
+  where s.id = service_requests.service_id
+   and s.provider_id = service_requests.provider_id
+   and s.status = 'approved'
+   and pp.approval_status = 'approved'
+ )
+);
 
 drop policy if exists "provider updates received requests or admin" on public.service_requests;
 create policy "provider updates received requests or admin" on public.service_requests for update to authenticated
@@ -284,28 +247,141 @@ drop policy if exists "admin list admin users" on public.admin_users;
 create policy "admin list admin users" on public.admin_users for select to authenticated using (public.is_admin());
 
 -- Public directory view deliberately excludes phone numbers and private contact details.
-create or replace view public.public_services as
+create or replace view public.public_services with (security_invoker = true) as
 select s.id,s.category_id,s.title,s.description,s.price_from,s.price_type,s.created_at,
        c.name as category_name,c.icon as category_icon,
        pp.user_id as provider_id,pp.business_name,pp.bio,pp.experience_years,
-       p.district,p.area
+       pp.district,pp.area
 from public.services s
 join public.provider_profiles pp on pp.user_id = s.provider_id
-join public.profiles p on p.id = pp.user_id
 join public.categories c on c.id = s.category_id
 where pp.approval_status = 'approved' and s.status = 'approved';
 
 grant usage on schema public to anon,authenticated;
 grant select on public.categories,public.services,public.public_services to anon,authenticated;
+
 grant select on public.profiles to authenticated;
+grant insert (id,full_name,phone,user_type,district,area) on public.profiles to authenticated;
 grant update(full_name,phone,district,area) on public.profiles to authenticated;
-grant insert,select,update on public.provider_profiles to authenticated;
-grant insert,select,update on public.services to authenticated;
-grant select,insert on public.service_requests to authenticated;
+
+grant select on public.provider_profiles to authenticated;
+grant select (user_id,business_name,bio,experience_years,district,area,approval_status) on public.provider_profiles to anon;
+revoke insert,update on public.provider_profiles from authenticated;
+grant insert (user_id,business_name,bio,experience_years,district,area) on public.provider_profiles to authenticated;
+grant update (business_name,bio,experience_years,district,area) on public.provider_profiles to authenticated;
+
+grant select on public.services to authenticated;
+revoke insert,update on public.services from authenticated;
+grant insert (provider_id,category_id,title,description,price_from,price_type) on public.services to authenticated;
+grant update (title,description,price_from,price_type) on public.services to authenticated;
+
+revoke select,insert on public.service_requests from authenticated;
+grant select (id,customer_id,provider_id,service_id,message,district,area,preferred_date,status,created_at) on public.service_requests to authenticated;
+grant insert (customer_id,provider_id,service_id,message,district,area,contact_phone,preferred_date) on public.service_requests to authenticated;
 revoke update on public.service_requests from authenticated;
 grant update(status) on public.service_requests to authenticated;
+
 grant select,insert,delete on public.favorites to authenticated;
 grant select on public.admin_users to authenticated;
 
 -- After the first trusted admin account registers, run this once with that user's auth.users ID:
 -- insert into public.admin_users(user_id) values ('PASTE_AUTH_USER_UUID_HERE');
+
+-- Performance indexes and optimized policies.
+create index if not exists favorites_service_id_idx on public.favorites(service_id);
+create index if not exists service_requests_customer_created_idx on public.service_requests(customer_id, created_at desc);
+create index if not exists service_requests_provider_created_idx on public.service_requests(provider_id, created_at desc);
+create index if not exists service_requests_service_id_idx on public.service_requests(service_id);
+create index if not exists services_category_id_idx on public.services(category_id);
+create index if not exists services_provider_id_idx on public.services(provider_id);
+
+drop policy if exists "profiles read own or admin" on public.profiles;
+create policy "profiles read own or admin" on public.profiles for select to authenticated
+using (id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "profiles insert own" on public.profiles;
+create policy "profiles insert own" on public.profiles for insert to authenticated
+with check (id = (select auth.uid()));
+
+drop policy if exists "profiles update own" on public.profiles;
+create policy "profiles update own" on public.profiles for update to authenticated
+using (id = (select auth.uid()) or (select public.is_admin()))
+with check (id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "provider profile owner or admin read" on public.provider_profiles;
+create policy "provider profile owner or admin read" on public.provider_profiles for select to authenticated
+using (user_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "provider creates own profile" on public.provider_profiles;
+create policy "provider creates own profile" on public.provider_profiles for insert to authenticated
+with check (
+  user_id = (select auth.uid())
+  and approval_status = 'pending'
+  and exists(select 1 from public.profiles p where p.id = (select auth.uid()) and p.user_type = 'provider')
+);
+
+drop policy if exists "provider updates own profile or admin" on public.provider_profiles;
+create policy "provider updates own profile or admin" on public.provider_profiles for update to authenticated
+using (user_id = (select auth.uid()) or (select public.is_admin()))
+with check (user_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "service owner or admin read" on public.services;
+create policy "service owner or admin read" on public.services for select to authenticated
+using (
+  provider_id = (select auth.uid())
+  or (select public.is_admin())
+  or (
+    status = 'approved'
+    and exists(select 1 from public.provider_profiles pp where pp.user_id = services.provider_id and pp.approval_status = 'approved')
+  )
+);
+
+drop policy if exists "approved services publicly readable" on public.services;
+create policy "approved services publicly readable" on public.services for select to anon
+using (
+  status = 'approved'
+  and exists(select 1 from public.provider_profiles pp where pp.user_id = services.provider_id and pp.approval_status = 'approved')
+);
+
+drop policy if exists "provider creates own service" on public.services;
+create policy "provider creates own service" on public.services for insert to authenticated
+with check (
+  provider_id = (select auth.uid())
+  and status = 'pending'
+  and exists(select 1 from public.provider_profiles pp where pp.user_id = (select auth.uid()))
+);
+
+drop policy if exists "provider edits own service or admin" on public.services;
+create policy "provider edits own service or admin" on public.services for update to authenticated
+using (provider_id = (select auth.uid()) or (select public.is_admin()))
+with check (provider_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "requests visible to parties or admin" on public.service_requests;
+create policy "requests visible to parties or admin" on public.service_requests for select to authenticated
+using (customer_id = (select auth.uid()) or provider_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "customer creates own request" on public.service_requests;
+create policy "customer creates own request" on public.service_requests for insert to authenticated
+with check (
+ customer_id = (select auth.uid()) and status = 'pending'
+ and exists (
+  select 1 from public.services s
+  join public.provider_profiles pp on pp.user_id = s.provider_id
+  where s.id = service_requests.service_id
+   and s.provider_id = service_requests.provider_id
+   and s.status = 'approved'
+   and pp.approval_status = 'approved'
+ )
+);
+
+drop policy if exists "provider updates received requests or admin" on public.service_requests;
+create policy "provider updates received requests or admin" on public.service_requests for update to authenticated
+using (provider_id = (select auth.uid()) or (select public.is_admin()))
+with check (provider_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "users manage own favorites" on public.favorites;
+create policy "users manage own favorites" on public.favorites for all to authenticated
+using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+drop policy if exists "admin list admin users" on public.admin_users;
+create policy "admin list admin users" on public.admin_users for select to authenticated using ((select public.is_admin()));
