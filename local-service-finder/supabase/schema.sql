@@ -107,7 +107,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   select p.phone
   from public.service_requests r
   join public.profiles p on p.id = r.provider_id
@@ -115,20 +115,20 @@ as $
     and r.customer_id = auth.uid()
     and r.status = 'accepted'
   limit 1;
-$;
+$$;
 
 grant execute on function public.get_provider_contact(uuid) to authenticated;
 
 create or replace function public.protect_profile_role()
 returns trigger language plpgsql security definer set search_path = public
-as $
+as $$
 begin
   if old.user_type is distinct from new.user_type and not public.is_admin() then
     raise exception 'Only an administrator can change account type';
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists protect_profile_role on public.profiles;
 create trigger protect_profile_role before update on public.profiles
@@ -136,7 +136,7 @@ for each row execute procedure public.protect_profile_role();
 
 create or replace function public.validate_service_request()
 returns trigger language plpgsql security definer set search_path = public
-as $
+as $$
 begin
   if not exists (
     select 1 from public.services s
@@ -150,7 +150,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists validate_service_request on public.service_requests;
 create trigger validate_service_request before insert on public.service_requests
