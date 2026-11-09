@@ -490,3 +490,25 @@ using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))
 
 drop policy if exists "admin list admin users" on public.admin_users;
 create policy "admin list admin users" on public.admin_users for select to authenticated using ((select public.is_admin()));
+
+-- Remove default/inherited access to private profile records for anonymous clients.
+revoke all privileges on table public.profiles from PUBLIC, anon;
+grant select on public.profiles to authenticated;
+grant insert (id,full_name,phone,user_type,district,area) on public.profiles to authenticated;
+grant update(full_name,phone,district,area) on public.profiles to authenticated;
+
+-- One authenticated SELECT policy combines owner/admin/approved visibility.
+drop policy if exists "provider profile owner or admin read" on public.provider_profiles;
+drop policy if exists "provider profile owner admin or approved read" on public.provider_profiles;
+create policy "provider profile owner admin or approved read" on public.provider_profiles
+for select to authenticated
+using (
+  user_id = (select auth.uid())
+  or (select public.is_admin())
+  or approval_status = 'approved'
+);
+
+drop policy if exists "approved providers publicly readable" on public.provider_profiles;
+create policy "approved providers publicly readable" on public.provider_profiles
+for select to anon
+using (approval_status = 'approved');
