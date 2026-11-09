@@ -323,7 +323,10 @@ async function signUp(form) {
   const result = await db.auth.signUp({
     email:String(data.get('email')).trim(),
     password:String(data.get('password')),
-    options:{data:{full_name:String(data.get('full_name')).trim(),phone:String(data.get('phone')).trim(),user_type:role}}
+    options:{
+      data:{full_name:String(data.get('full_name')).trim(),phone:String(data.get('phone')).trim(),user_type:role},
+      emailRedirectTo:window.location.origin
+    }
   });
   if (result.error) { toast(result.error.message); return; }
   if (result.data.session) {
