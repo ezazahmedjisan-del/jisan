@@ -11,6 +11,7 @@ let user = null;
 let profile = null;
 let categories = [];
 let toastTimer = null;
+let afterLoginPath = 'dashboard';
 
 const icons = {'ইলেকট্রিশিয়ান':'💡','প্লাম্বার':'🚿','টিউটর':'📚','এসি মেকানিক':'❄️','ক্লিনিং':'🧹','পেইন্টার':'🖌️','কম্পিউটার সার্ভিস':'💻','মিস্ত্রি':'🧱','ফ্রিজ মেকানিক':'🧊'};
 const statusLabels = {pending:'অপেক্ষমাণ',approved:'অনুমোদিত',rejected:'বাতিল',paused:'বিরত',accepted:'গৃহীত',declined:'প্রত্যাখ্যাত',completed:'সম্পন্ন',cancelled:'বাতিল'};
@@ -110,7 +111,7 @@ async function findPage() {
   let html = '<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">SERVICE DIRECTORY</div><h1>আপনার এলাকার সেবাদাতা খুঁজুন</h1><p>ক্যাটাগরি, জেলা বা কাজের নাম দিয়ে খুঁজুন।</p></div><form class="panel search-panel" id="search-form"><div class="search-grid">' +
     selectField('সেবার ধরন','category_id','<option value="">সব ক্যাটাগরি</option>' + cats.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join(''),false) +
     selectField('জেলা','district','<option value="">সব জেলা</option><option>গাজীপুর</option><option>ঢাকা</option><option>নারায়ণগঞ্জ</option><option>নরসিংদী</option><option>ময়মনসিংহ</option><option>কিশোরগঞ্জ</option><option>টাঙ্গাইল</option>',false) +
-    '<div class="field"><label>কাজ বা সেবার নাম</label><input name="q" placeholder="যেমন: বাসার ওয়্যারিং"></div><button class="btn" type="submit">খুঁজুন ⌕</button></div></form><div class="results-head"><div><h2>অনুমোদিত সেবা</h2><p id="results-count">সেবাদাতার তালিকা লোড হচ্ছে…</p></div></div><div id="service-results" class="service-grid"><div class="loading-screen"><span class="spinner"></span><p>সেবা খোঁজা হচ্ছে…</p></div></div></div></section>';
+    '<div class="field"><label>এলাকা</label><input name="area" placeholder="যেমন: টঙ্গী, জয়দেবপুর"></div><div class="field"><label>কাজ বা সেবার নাম</label><input name="q" placeholder="যেমন: বাসার ওয়্যারিং"></div><button class="btn" type="submit">খুঁজুন ⌕</button></div></form><div class="results-head"><div><h2>অনুমোদিত সেবা</h2><p id="results-count">সেবাদাতার তালিকা লোড হচ্ছে…</p></div></div><div id="service-results" class="service-grid"><div class="loading-screen"><span class="spinner"></span><p>সেবা খোঁজা হচ্ছে…</p></div></div></div></section>';
   app.innerHTML = html;
   const form = document.getElementById('search-form');
   if (query.get('category')) {
@@ -131,10 +132,12 @@ async function loadServices() {
   const form = document.getElementById('search-form');
   const q = form.elements.q.value.trim();
   const district = form.elements.district.value;
+  const area = form.elements.area.value.trim();
   const category = form.elements.category_id.value;
   let request = db.from('public_services').select('*').order('created_at',{ascending:false}).limit(60);
   if (q) request = request.or('title.ilike.%'+q+'%,description.ilike.%'+q+'%,business_name.ilike.%'+q+'%');
   if (district) request = request.eq('district',district);
+  if (area) request = request.ilike('area','%'+area+'%');
   if (category) request = request.eq('category_id',category);
   const result = await request;
   if (result.error) {
@@ -161,7 +164,7 @@ async function servicePage(id) {
   app.innerHTML = '<section class="page"><div class="container"><div class="crumb"><a href="#find">সেবার তালিকা</a> / বিস্তারিত</div><div class="panel"><div class="service-meta"><span class="tag">'+esc(s.category_name)+'</span><span class="tag">'+esc(s.district || 'এলাকা উল্লেখ নেই')+'</span></div><div class="profile-top"><div class="profile-avatar">'+esc((s.business_name||'স').slice(0,1))+'</div><div><h1>'+esc(s.business_name)+'</h1><p>'+esc(s.area || '')+' · '+esc(s.experience_years || 0)+' বছরের অভিজ্ঞতা</p></div></div><hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><h2>'+esc(s.title)+'</h2><p>'+esc(s.description)+'</p><p><b>প্রারম্ভিক মূল্য:</b> '+esc(money(s.price_from))+'</p><p><b>সেবাদাতার পরিচিতি:</b> '+esc(s.bio || 'পরিচিতি দেওয়া হয়নি।')+'</p><div class="notice">যোগাযোগের ফোন নম্বর পাবলিক প্রোফাইলে দেখানো হয় না। কাজের অনুরোধ পাঠানোর পর সেবাদাতা আপনার সঙ্গে যোগাযোগের ব্যবস্থা করতে পারবেন।</div><div class="form-actions"><a class="btn" href="#request/'+encodeURIComponent(s.id)+'">কাজের অনুরোধ পাঠান</a><a class="btn btn-outline" href="#find">আরও সেবা দেখুন</a></div></div></div></section>';
 }
 async function requestPage(serviceId) {
-  if (!user) { go('login'); toast('অনুরোধ পাঠাতে আগে লগইন করুন।'); return; }
+  if (!user) { afterLoginPath='request/'+encodeURIComponent(serviceId); go('login'); toast('অনুরোধ পাঠাতে আগে লগইন করুন।'); return; }
   if (!db) { app.innerHTML = backendNotice(); return; }
   const result = await db.from('public_services').select('*').eq('id',serviceId).maybeSingle();
   if (result.error || !result.data) { app.innerHTML = emptyState('সেবাটি পাওয়া যায়নি','সেবাটির অনুমোদন বা তথ্য যাচাই করুন।'); return; }
@@ -201,13 +204,19 @@ async function dashboardPage() {
   const pp = isProvider ? await db.from('provider_profiles').select('approval_status,business_name').eq('user_id',user.id).maybeSingle() : {data:null};
   const requests = isProvider ? (received.data || []) : (sent.data || []);
   const services = myServices.data || [];
-  const rows = requests.length ? '<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>এলাকা</th><th>অবস্থা</th><th>তারিখ</th>'+(isProvider?'<th>যোগাযোগ</th><th>কাজ</th>':'')+'</tr></thead><tbody>'+requests.map(r=>'<tr><td>'+esc(r.service && r.service.title || 'সেবা')+'</td><td>'+esc(r.area || '-')+'</td><td><span class="status '+esc(r.status)+'">'+esc(statusLabels[r.status] || r.status)+'</span></td><td>'+new Date(r.created_at).toLocaleDateString('bn-BD')+'</td>'+(isProvider?'<td>'+esc(r.contact_phone || '-')+'</td><td>'+(r.status==='pending'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="accepted">গ্রহণ</button> <button class="btn btn-small btn-outline" data-request="'+esc(r.id)+'" data-next="declined">না</button>':r.status==='accepted'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="completed">সম্পন্ন</button>':'—')+'</td>':'')+'</tr>').join('')+'</tbody></table></div>' : emptyState('এখনো কোনো কাজের অনুরোধ নেই',isProvider?'কেউ কাজের অনুরোধ পাঠালে এখানে দেখতে পাবেন।':'সেবা খুঁজে কাজের অনুরোধ পাঠালে এখানে দেখা যাবে।','📬');
+  const rows = requests.length ? '<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>এলাকা</th><th>অবস্থা</th><th>তারিখ</th>'+(isProvider?'<th>গ্রাহকের নম্বর</th><th>কাজ</th>':'<th>যোগাযোগ</th>')+'</tr></thead><tbody>'+requests.map(r=>'<tr><td>'+esc(r.service && r.service.title || 'সেবা')+'</td><td>'+esc(r.area || '-')+'</td><td><span class="status '+esc(r.status)+'">'+esc(statusLabels[r.status] || r.status)+'</span></td><td>'+new Date(r.created_at).toLocaleDateString('bn-BD')+'</td>'+(isProvider?'<td>'+esc(r.contact_phone || '-')+'</td><td>'+(r.status==='pending'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="accepted">গ্রহণ</button> <button class="btn btn-small btn-outline" data-request="'+esc(r.id)+'" data-next="declined">না</button>':r.status==='accepted'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="completed">সম্পন্ন</button>':'—')+'</td>':'<td>'+(r.status==='accepted'?'<button class="btn btn-small" data-contact="'+esc(r.id)+'">নম্বর দেখুন</button>':'অনুমোদনের পর নম্বর পাওয়া যাবে')+'</td>')+'</tr>').join('')+'</tbody></table></div>' : emptyState('এখনো কোনো কাজের অনুরোধ নেই',isProvider?'কেউ কাজের অনুরোধ পাঠালে এখানে দেখতে পাবেন।':'সেবা খুঁজে কাজের অনুরোধ পাঠালে এখানে দেখা যাবে।','📬');
   app.innerHTML = '<section class="page"><div class="container"><div class="profile-top" style="margin-bottom:22px"><div class="profile-avatar">'+esc((profile && profile.full_name || user.email || 'U').slice(0,1))+'</div><div><div class="eyebrow">MY DASHBOARD</div><h1>' + esc(profile && profile.full_name || user.email) + '</h1><p>'+(isProvider?'সেবাদাতা অ্যাকাউন্ট':'সেবাগ্রহীতা অ্যাকাউন্ট')+' · '+esc(profile && profile.district || 'এলাকা সেট করা হয়নি')+'</p></div><button id="logout-btn" class="btn btn-outline right">লগআউট</button></div><div class="dashboard-grid"><nav class="side-nav"><a class="active" href="#dashboard">ড্যাশবোর্ড</a>'+(isProvider?'<a href="#provider-start">আমার সেবা</a>':'<a href="#find">সেবা খুঁজুন</a>')+'<a href="#account">প্রোফাইল সেটিংস</a></nav><div><div class="stats"><div class="stat"><strong>'+requests.length.toLocaleString('bn-BD')+'</strong><span>'+(isProvider?'পাওয়া অনুরোধ':'পাঠানো অনুরোধ')+'</span></div><div class="stat"><strong>'+services.length.toLocaleString('bn-BD')+'</strong><span>আমার সেবা</span></div><div class="stat"><strong>'+esc(pp.data?statusLabels[pp.data.approval_status] || pp.data.approval_status:'—')+'</strong><span>প্রোফাইল যাচাই</span></div></div><div class="panel"><div class="results-head"><div><h2>'+(isProvider?'আমার কাছে আসা অনুরোধ':'আমার পাঠানো অনুরোধ')+'</h2><p>সর্বশেষ কাজের আপডেট</p></div></div>'+rows+'</div>'+(isProvider?'<div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>আমার সেবাসমূহ</h2><p>অ্যাডমিন যাচাইয়ের অবস্থা</p></div></div>'+(services.length?'<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>অবস্থা</th></tr></thead><tbody>'+services.map(s=>'<tr><td>'+esc(s.title)+'</td><td><span class="status '+esc(s.status)+'">'+esc(statusLabels[s.status] || s.status)+'</span></td></tr>').join('')+'</tbody></table></div>':emptyState('সেবা যোগ করা হয়নি','আপনার সেবা-প্রোফাইল তৈরি করুন।'))+'</div>':'')+'</div></div></div></section>';
   document.getElementById('logout-btn').onclick = signOut;
   app.querySelectorAll('[data-request]').forEach(btn => btn.addEventListener('click', async () => {
     const result = await db.from('service_requests').update({status:btn.dataset.next}).eq('id',btn.dataset.request);
     if (result.error) toast('অনুরোধ আপডেট করা যায়নি: ' + result.error.message);
     else { toast('অনুরোধের অবস্থা আপডেট হয়েছে।'); dashboardPage(); }
+  }));
+  app.querySelectorAll('[data-contact]').forEach(btn=>btn.addEventListener('click',async()=>{
+    btn.disabled=true;btn.textContent='লোড হচ্ছে…';
+    const result=await db.rpc('get_provider_contact',{p_request_id:btn.dataset.contact});
+    if(result.error || !result.data){toast('সেবাদাতার নম্বর পাওয়া যায়নি। অনুরোধটি অনুমোদিত কি না দেখুন।');btn.disabled=false;btn.textContent='নম্বর দেখুন';return;}
+    btn.outerHTML='<a class="btn btn-small" href="tel:'+encodeURIComponent(result.data)+'">'+esc(result.data)+'</a>';
   }));
 }
 async function accountPage() {
@@ -274,7 +283,9 @@ async function signIn(form) {
   user=result.data.user;
   await loadProfile();
   toast('লগইন সফল হয়েছে।');
-  go('dashboard');
+  const destination=afterLoginPath;
+  afterLoginPath='dashboard';
+  go(destination);
 }
 async function signOut() {
   if (!db) return;
