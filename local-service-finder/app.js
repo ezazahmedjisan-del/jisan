@@ -90,9 +90,6 @@ async function ensureProfile() {
   if (inserted.error && inserted.error.code !== '23505') throw inserted.error;
   await loadProfile();
 }
-function googleAuthButton(label) {
-  return '<button class="btn google-btn" id="google-auth" type="button" ' + (!db ? 'disabled' : '') + '><span class="google-mark" aria-hidden="true">G</span><span>' + esc(label || 'Google দিয়ে চালিয়ে যান') + '</span></button><div class="auth-divider"><span>অথবা ইমেইল দিয়ে</span></div>';
-}
 function normalizeBangladeshPhone(value) {
   const raw = String(value || '').trim().replace(/[\s()-]/g, '');
   if (/^01[3-9][0-9]{8}$/.test(raw)) return raw;
@@ -162,9 +159,9 @@ function authPage(kind) {
       const emailLine = user.email ? '<p class="hint">' + esc(user.email) + '</p>' : '';
       return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc((profile && profile.full_name || user.email || 'U').slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div><p class="hint" style="margin-top:16px">তোমার লগইন নিরাপদভাবে Supabase Auth পরিচালনা করে।</p></div></div></section>';
     }
-    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>সহজে লগইন করুন</h1><p>Google দিয়ে এক ক্লিকে, অথবা ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।</p></div>' + backendNotice() + googleAuthButton('Google দিয়ে লগইন / অ্যাকাউন্ট খুলুন') + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-email">ইমেইল ঠিকানা</label><input id="login-email" name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="তোমার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">অন্যের কম্পিউটারে লগইন করলে শেষে লগআউট করবে।</p></div></div></section>';
+    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>সহজে লগইন করুন</h1><p>ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-email">ইমেইল ঠিকানা</label><input id="login-email" name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="তোমার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">অন্যের কম্পিউটারে লগইন করলে শেষে লগআউট করবে।</p></div></div></section>';
   }
-  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>Google দিয়ে সহজে শুরু করুন, অথবা নিচে ইমেইল দিয়ে নিবন্ধন করুন।</p></div>' + backendNotice() + googleAuthButton('Google দিয়ে সহজে অ্যাকাউন্ট খুলুন') + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
+  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>সহজেই নিজের অ্যাকাউন্ট তৈরি করুন।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
 }
 async function findPage() {
   const parsed = route();
@@ -469,26 +466,6 @@ async function saveAccount(form) {
   await loadProfile();toast('প্রোফাইল আপডেট হয়েছে।');go('profile');
 }
 function bindForms() {
-  const googleButton = document.getElementById('google-auth');
-  if (googleButton) googleButton.addEventListener('click', async () => {
-    if (!db) return;
-    googleButton.disabled = true;
-    googleButton.querySelector('span:last-child').textContent = 'Google-এর সঙ্গে সংযোগ হচ্ছে…';
-    const result = await db.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin }
-    });
-    if (result.error) {
-      const message = (result.error.message || '').toLowerCase();
-      if (message.includes('provider is not enabled') || message.includes('unsupported provider')) {
-        toast('Google লগইন চালু করতে Supabase-এর Google Provider-এ Client ID ও Secret সেট করতে হবে।');
-      } else {
-        toast('Google লগইন শুরু হয়নি। সেটআপ পরীক্ষা করে আবার চেষ্টা করুন।');
-      }
-      googleButton.disabled = false;
-      googleButton.querySelector('span:last-child').textContent = 'Google দিয়ে লগইন / অ্যাকাউন্ট খুলুন';
-    }
-  });
   const initialProfileForm = document.getElementById('initial-profile-form');
   if (initialProfileForm) initialProfileForm.addEventListener('submit', async event => {
     event.preventDefault();
