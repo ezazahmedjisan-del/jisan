@@ -94,9 +94,9 @@ function googleAuthButton(label) {
   return '<button class="btn google-btn" id="google-auth" type="button" ' + (!db ? 'disabled' : '') + '><span class="google-mark" aria-hidden="true">G</span><span>' + esc(label || 'Google দিয়ে চালিয়ে যান') + '</span></button><div class="auth-divider"><span>অথবা ইমেইল দিয়ে</span></div>';
 }
 function normalizeBangladeshPhone(value) {
-  const raw = String(value || '').trim().replace(/[\\s()-]/g, '');
+  const raw = String(value || '').trim().replace(/[\s()-]/g, '');
   if (/^01[3-9][0-9]{8}$/.test(raw)) return raw;
-  if (/^\\+?8801[3-9][0-9]{8}$/.test(raw)) return '0' + raw.replace(/^\\+?880/, '');
+  if (/^\+?8801[3-9][0-9]{8}$/.test(raw)) return '0' + raw.replace(/^\+?880/, '');
   return '';
 }
 function formField(label, name, type, placeholder, required, extra) {
