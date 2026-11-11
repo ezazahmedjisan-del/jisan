@@ -80,14 +80,24 @@ async function ensureProfile() {
   await loadProfile();
   if (profile) return;
   const meta = user.user_metadata || {};
+  const fallbackName = user.email ? user.email.split('@')[0] : 'নতুন ব্যবহারকারী';
   const inserted = await db.from('profiles').insert({
     id: user.id,
-    full_name: String(meta.full_name || meta.name || ''),
+    full_name: String(meta.full_name || meta.name || fallbackName),
     phone: String(meta.phone || ''),
     user_type: meta.user_type === 'provider' ? 'provider' : 'customer'
   });
-  if (inserted.error) throw inserted.error;
+  if (inserted.error && inserted.error.code !== '23505') throw inserted.error;
   await loadProfile();
+}
+function googleAuthButton(label) {
+  return '<button class="btn google-btn" id="google-auth" type="button" ' + (!db ? 'disabled' : '') + '><span class="google-mark" aria-hidden="true">G</span><span>' + esc(label || 'Google দিয়ে চালিয়ে যান') + '</span></button><div class="auth-divider"><span>অথবা ইমেইল দিয়ে</span></div>';
+}
+function normalizeBangladeshPhone(value) {
+  const raw = String(value || '').trim().replace(/[\\s()-]/g, '');
+  if (/^01[3-9][0-9]{8}$/.test(raw)) return raw;
+  if (/^\\+?8801[3-9][0-9]{8}$/.test(raw)) return '0' + raw.replace(/^\\+?880/, '');
+  return '';
 }
 function formField(label, name, type, placeholder, required, extra) {
   return '<div class="field"><label for="' + esc(name) + '">' + esc(label) + '</label><input id="' + esc(name) + '" name="' + esc(name) + '" type="' + (type || 'text') + '" placeholder="' + esc(placeholder || '') + '"' + (required ? ' required' : '') + ' ' + (extra || '') + '></div>';
@@ -152,9 +162,9 @@ function authPage(kind) {
       const emailLine = user.email ? '<p class="hint">' + esc(user.email) + '</p>' : '';
       return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc((profile && profile.full_name || user.email || 'U').slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div><p class="hint" style="margin-top:16px">তোমার লগইন নিরাপদভাবে Supabase Auth পরিচালনা করে।</p></div></div></section>';
     }
-    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>সহজে লগইন করুন</h1><p>ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-email">ইমেইল ঠিকানা</label><input id="login-email" name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="তোমার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">অন্যের কম্পিউটারে লগইন করলে শেষে লগআউট করবে।</p></div></div></section>';
+    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>সহজে লগইন করুন</h1><p>Google দিয়ে এক ক্লিকে, অথবা ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।</p></div>' + backendNotice() + googleAuthButton('Google দিয়ে লগইন / অ্যাকাউন্ট খুলুন') + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-email">ইমেইল ঠিকানা</label><input id="login-email" name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="তোমার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">অন্যের কম্পিউটারে লগইন করলে শেষে লগআউট করবে।</p></div></div></section>';
   }
-  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>সঠিক তথ্য দিন। আপনার অ্যাকাউন্ট নিরাপদে তৈরি হবে।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
+  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>Google দিয়ে সহজে শুরু করুন, অথবা নিচে ইমেইল দিয়ে নিবন্ধন করুন।</p></div>' + backendNotice() + googleAuthButton('Google দিয়ে সহজে অ্যাকাউন্ট খুলুন') + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
 }
 async function findPage() {
   const parsed = route();
@@ -286,13 +296,42 @@ async function dashboardPage() {
     btn.outerHTML='<a class="btn btn-small" href="tel:'+encodeURIComponent(result.data)+'">'+esc(result.data)+'</a>';
   }));
 }
+async function completeProfilePage() {
+  if (!user) { go('login'); return; }
+  await ensureProfile();
+  if (profile && profile.phone) { go('profile'); return; }
+  const meta = user.user_metadata || {};
+  const displayName = profile && profile.full_name || meta.full_name || meta.name || 'আপনার নাম';
+  const emailText = user.email || '';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">YOUR LOCAL SERVICE FINDER PROFILE</div><h1>আপনার নিজস্ব প্রোফাইল তৈরি করুন</h1><p>নাম ও ইমেইল Google থেকে এসেছে। শুধু মোবাইল নম্বর দিন এবং কীভাবে সাইটটি ব্যবহার করবেন বেছে নিন।</p></div><div class="profile-top" style="margin:18px 0 22px"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:19px">' + esc(displayName) + '</h2><p class="hint">' + esc(emailText) + '</p></div></div><form id="initial-profile-form" class="form-grid">' + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel" inputmode="tel" maxlength="14"') + '<div class="field full"><label for="initial-user-type">আপনি কীভাবে ব্যবহার করবেন?</label><select id="initial-user-type" name="user_type" required><option value="customer">আমি সেবা খুঁজব</option><option value="provider">আমি নিজের সেবা / দক্ষতা দিয়ে কাজ দিতে চাই</option></select><p class="hint">পরে চাইলে সেবাদাতা হওয়ার বিস্তারিত প্রোফাইলও তৈরি করতে পারবেন।</p></div><div class="field full"><button class="btn" type="submit">প্রোফাইল তৈরি করুন</button></div></form><p class="hint">আপনার ফোন নম্বর এই ওয়েবসাইটের প্রোফাইলে সংরক্ষিত হবে। এটি দেওয়ার আগে নম্বরটি সঠিক কি না দেখে নিন।</p></div></div></section>';
+}
+async function completeInitialProfile(form) {
+  if (!db || !user) return;
+  const data = new FormData(form);
+  const phone = normalizeBangladeshPhone(data.get('phone'));
+  if (!phone) { toast('সঠিক বাংলাদেশি মোবাইল নম্বর লিখুন, যেমন 01XXXXXXXXX।'); return; }
+  const role = data.get('user_type') === 'provider' ? 'provider' : 'customer';
+  const meta = user.user_metadata || {};
+  const fullName = profile && profile.full_name || meta.full_name || meta.name || (user.email ? user.email.split('@')[0] : 'নতুন ব্যবহারকারী');
+  const result = await db.from('profiles').update({
+    full_name: String(fullName).trim(),
+    phone,
+    user_type: role
+  }).eq('id', user.id);
+  if (result.error) { toast('প্রোফাইল সংরক্ষণ হয়নি। আবার চেষ্টা করুন।'); return; }
+  await loadProfile();
+  toast('আপনার নিজস্ব প্রোফাইল তৈরি হয়েছে।');
+  if (role === 'provider') go('provider-start');
+  else go('profile');
+}
+
 async function accountPage() {
   if (!user) { go('login'); return; }
   await loadProfile();
   const displayName = profile && profile.full_name || 'আপনার নাম';
   const roleLabel = profile && profile.user_type === 'provider' ? 'সেবাদাতা অ্যাকাউন্ট' : 'সেবাগ্রহীতা অ্যাকাউন্ট';
   const emailText = user.email || 'ইমেইল যুক্ত নেই';
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="profile-top" style="margin-bottom:18px"><div class="profile-avatar">'+esc(displayName.slice(0,1).toUpperCase())+'</div><div><div class="eyebrow">MY PROFILE</div><h1>'+esc(displayName)+'</h1><p>'+esc(emailText)+'</p><p class="hint">'+esc(roleLabel)+'</p></div></div><div class="form-actions" style="margin:0 0 22px"><a class="btn btn-outline" href="#dashboard">আমার ড্যাশবোর্ড</a><a class="btn btn-quiet" href="#logout">লগআউট</a></div><div class="page-head"><div class="eyebrow">PROFILE SETTINGS</div><h2>প্রোফাইল তথ্য</h2><p>আপনার নাম, যোগাযোগ ও এলাকার তথ্য হালনাগাদ করুন।</p></div><form id="account-form" class="form-grid">'+formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',false) + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form></div></div></section>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="profile-top" style="margin-bottom:18px"><div class="profile-avatar">'+esc(displayName.slice(0,1).toUpperCase())+'</div><div><div class="eyebrow">MY PROFILE</div><h1>'+esc(displayName)+'</h1><p>'+esc(emailText)+'</p><p class="hint">'+esc(roleLabel)+'</p></div></div><div class="form-actions" style="margin:0 0 22px"><a class="btn btn-outline" href="#dashboard">আমার ড্যাশবোর্ড</a><a class="btn btn-quiet" href="#logout">লগআউট</a></div><div class="page-head"><div class="eyebrow">PROFILE SETTINGS</div><h2>প্রোফাইল তথ্য</h2><p>আপনার নাম, যোগাযোগ ও এলাকার তথ্য হালনাগাদ করুন।</p></div><form id="account-form" class="form-grid">'+formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel" inputmode="tel" maxlength="14"') + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form></div></div></section>';
   const form=document.getElementById('account-form');
   attachLocationSelectors(form, profile && profile.district || '', profile && profile.area || '');
   form.elements.full_name.value=profile && profile.full_name || '';
@@ -327,12 +366,14 @@ async function signUp(form) {
   if (!db) return;
   const data = new FormData(form);
   const role = form.dataset.role;
+  const phone = normalizeBangladeshPhone(data.get('phone'));
+  if (!phone) { toast('সঠিক বাংলাদেশি মোবাইল নম্বর লিখুন, যেমন 01XXXXXXXXX।'); return; }
   if (!data.get('terms')) { toast('ব্যবহারের নিয়মে সম্মতি দিন।'); return; }
   const result = await db.auth.signUp({
     email:String(data.get('email')).trim(),
     password:String(data.get('password')),
     options:{
-      data:{full_name:String(data.get('full_name')).trim(),phone:String(data.get('phone')).trim(),user_type:role},
+      data:{full_name:String(data.get('full_name')).trim(),phone,user_type:role},
       emailRedirectTo:window.location.origin
     }
   });
@@ -365,6 +406,7 @@ async function signInWithPassword(form) {
   user = result.data.user;
   await ensureProfile();
   toast('লগইন সফল হয়েছে।');
+  if (!profile || !profile.phone) { go('complete-profile'); return; }
   const destination = afterLoginPath || 'profile';
   afterLoginPath = 'profile';
   go(destination);
@@ -411,9 +453,11 @@ async function sendRequest(form) {
 async function saveAccount(form) {
   if(!db||!user)return;
   const d=new FormData(form);
+  const phone = normalizeBangladeshPhone(d.get('phone'));
+  if (!phone) { toast('সঠিক বাংলাদেশি মোবাইল নম্বর লিখুন, যেমন 01XXXXXXXXX।'); return; }
   const result=await db.from('profiles').update({
     full_name:String(d.get('full_name')).trim(),
-    phone:String(d.get('phone')||'').trim(),
+    phone,
     district:String(d.get('district')||'').trim(),
     area:String(d.get('area')||'').trim()
   }).eq('id',user.id);
@@ -425,6 +469,35 @@ async function saveAccount(form) {
   await loadProfile();toast('প্রোফাইল আপডেট হয়েছে।');go('profile');
 }
 function bindForms() {
+  const googleButton = document.getElementById('google-auth');
+  if (googleButton) googleButton.addEventListener('click', async () => {
+    if (!db) return;
+    googleButton.disabled = true;
+    googleButton.querySelector('span:last-child').textContent = 'Google-এর সঙ্গে সংযোগ হচ্ছে…';
+    const result = await db.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if (result.error) {
+      const message = (result.error.message || '').toLowerCase();
+      if (message.includes('provider is not enabled') || message.includes('unsupported provider')) {
+        toast('Google লগইন চালু করতে Supabase-এর Google Provider-এ Client ID ও Secret সেট করতে হবে।');
+      } else {
+        toast('Google লগইন শুরু হয়নি। সেটআপ পরীক্ষা করে আবার চেষ্টা করুন।');
+      }
+      googleButton.disabled = false;
+      googleButton.querySelector('span:last-child').textContent = 'Google দিয়ে লগইন / অ্যাকাউন্ট খুলুন';
+    }
+  });
+  const initialProfileForm = document.getElementById('initial-profile-form');
+  if (initialProfileForm) initialProfileForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = initialProfileForm.querySelector('button[type="submit"]');
+    if (button) { button.disabled = true; button.textContent = 'প্রোফাইল তৈরি হচ্ছে…'; }
+    try { await completeInitialProfile(initialProfileForm); }
+    catch (err) { toast('প্রোফাইল তৈরি হয়নি। আবার চেষ্টা করুন।'); }
+    finally { if (button && document.body.contains(button)) { button.disabled = false; button.textContent = 'প্রোফাইল তৈরি করুন'; } }
+  });
   const continueButton = document.getElementById('continue-session');
   if (continueButton) continueButton.addEventListener('click', () => {
     const destination = afterLoginPath || 'profile';
@@ -446,7 +519,7 @@ function bindForms() {
     user = null;
     profile = null;
     afterLoginPath = 'profile';
-    toast('এই ডিভাইস থেকে লগআউট হয়েছে। অন্য অ্যাকাউন্ট দিয়ে ইমেইল ও পাসওয়ার্ড ব্যবহার করুন।');
+    toast('এই ডিভাইস থেকে লগআউট হয়েছে। অন্য অ্যাকাউন্ট দিয়ে Google অথবা ইমেইল ও পাসওয়ার্ড ব্যবহার করুন।');
     await render();
   });
   const handlers={
@@ -468,6 +541,10 @@ async function render() {
   updateNav();
   const r=route();
   try {
+    if (user && profile && !profile.phone && r.name !== 'complete-profile' && r.name !== 'logout') {
+      go('complete-profile');
+      return;
+    }
     if (r.name==='home') app.innerHTML=homePage();
     else if (r.name==='find') await findPage();
     else if (r.name==='login'||r.name==='signup-customer'||r.name==='signup-provider') app.innerHTML=authPage(r.name);
@@ -475,6 +552,7 @@ async function render() {
     else if (r.name==='service') await servicePage(decodeURIComponent(r.id));
     else if (r.name==='request') await requestPage(decodeURIComponent(r.id));
     else if (r.name==='dashboard') await dashboardPage();
+    else if (r.name==='complete-profile') await completeProfilePage();
     else if (r.name==='account' || r.name==='profile') await accountPage();
     else if (r.name==='admin') await adminPage();
     else if (r.name==='how') await howPage();
@@ -490,12 +568,14 @@ async function init() {
   setupMenu();
   if (db) {
     await loadSession();
-    db.auth.onAuthStateChange((_event,session)=>{
+    db.auth.onAuthStateChange((event,session)=>{
       user=session?session.user:null;
       Promise.resolve().then(async()=>{
-        await loadProfile();
-        render();
-      });
+        if (user) await ensureProfile();
+        else profile = null;
+        if (event === 'SIGNED_IN' && user && (!profile || !profile.phone)) go('complete-profile');
+        await render();
+      }).catch(() => toast('অ্যাকাউন্টের প্রোফাইল লোড করা যায়নি। পেজটি রিফ্রেশ করুন।'));
     });
     const cr=await db.from('categories').select('id,name,icon').order('name');
     if (!cr.error) categories=cr.data||[];
