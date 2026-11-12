@@ -172,8 +172,49 @@ function serviceCard(item) {
   return '<article class="service-card"><div class="service-meta"><span class="tag">' + esc(item.category_name || 'সেবা') + '</span><span class="tag">' + esc(item.district || 'এলাকা উল্লেখ নেই') + '</span></div><h3>' + esc(item.title) + '</h3><p>' + esc(item.description || 'সেবার বিস্তারিত তথ্য দেওয়া হয়নি।') + '</p><div class="service-owner"><b>' + esc(item.business_name || 'সেবাদাতা') + '</b><span>' + esc(handle) + ' · ' + esc(item.area || 'এলাকা উল্লেখ নেই') + '</span>' + phoneBadge + '</div><div class="card-bottom"><span class="price">' + esc(money(item.price_from)) + '</span><a class="btn btn-small" href="#service/' + encodeURIComponent(item.id) + '">বিস্তারিত</a></div></article>';
 }
 
-function homePage() {
-  return '<section class="hero"><div class="container hero-grid"><div><div class="eyebrow">LOCAL SERVICE FINDER BD</div><h1>দক্ষ মানুষের সঙ্গে<br>কাজ শুরু করুন।</h1><p>গ্রাফিক ডিজাইন, ভিডিও এডিটিং, ওয়েব ডেভেলপমেন্টসহ বিভিন্ন দক্ষতার মানুষের সঙ্গে কাজ শুরু করুন। নিজের সার্ভিস প্রকাশ করুন অথবা প্রয়োজনের সঠিক পেশাদার খুঁজে নিন।</p><div class="hero-actions"><a class="btn" href="#find">সেবা খুঁজে দেখুন <span>→</span></a><a class="btn btn-outline" href="#provider-start">সেবাদাতা হিসেবে যোগ দিন</a>' + (user ? '<a class="btn btn-quiet" href="#profile">Continue as ' + esc(profile && profile.full_name || profile && profile.phone || 'আপনার অ্যাকাউন্ট') + ' →</a>' : '') + '</div><div class="hero-note">যাচাই ছাড়া কাউকে অনুমোদিত সেবাদাতা হিসেবে দেখানো হবে না।</div></div><div class="visual-panel"><div class="visual-pin">আপনার এলাকার সেবা</div><div class="visual-tile"><div class="icon">🔧</div><b>দক্ষ কারিগর</b><span>মেরামত ও রক্ষণাবেক্ষণ</span></div><div class="visual-tile"><div class="icon">📍</div><b>এলাকাভিত্তিক খোঁজ</b><span>জেলা ও এলাকা নির্বাচন</span></div><div class="visual-tile"><div class="icon">🤝</div><b>সরাসরি অনুরোধ</b><span>কাজের বিবরণ পাঠান</span></div><div class="visual-tile"><div class="icon">🛡️</div><b>যাচাইয়ের ধাপ</b><span>অনুমোদনের পর তালিকাভুক্ত</span></div></div></div></section><div class="trust-strip"><div class="container trust-grid"><div class="trust-item"><strong>01</strong> প্রয়োজন অনুযায়ী সেবা খুঁজুন</div><div class="trust-item"><strong>02</strong> এলাকার তথ্য মিলিয়ে নিন</div><div class="trust-item"><strong>03</strong> কাজের অনুরোধ পাঠান</div></div></div><section class="section"><div class="container"><div class="section-head"><div class="eyebrow">দুইভাবে ব্যবহার করুন</div><h2>আপনি কোন ভূমিকায় আছেন?</h2><p>নিজের প্রয়োজন অনুযায়ী সঠিক পথে শুরু করুন।</p></div><div class="role-grid"><article class="role-card"><div class="icon">🔎</div><h3>আমার সেবা প্রয়োজন</h3><p>এলাকা ও কাজের ধরন বেছে নিয়ে সেবাদাতাদের তালিকা দেখুন। প্রোফাইল যাচাই করে কাজের অনুরোধ পাঠান।</p><a class="text-link" href="#signup-customer">সেবাগ্রহীতা অ্যাকাউন্ট খুলুন →</a></article><article class="role-card"><div class="icon">🧰</div><h3>আমি সেবা দিতে চাই</h3><p>নিজের দক্ষতা, কাজের বিবরণ ও সার্ভিস এলাকা দিয়ে প্রোফাইল তৈরি করুন। যাচাই শেষে সেবার তালিকায় যুক্ত হোন।</p><a class="text-link" href="#signup-provider">সেবাদাতা হিসেবে যোগ দিন →</a></article></div></div></section><section class="section" style="background:#f0f5f0"><div class="container"><div class="section-head"><div class="eyebrow">জনপ্রিয় ক্যাটাগরি</div><h2>কোন সেবাটি খুঁজছেন?</h2><p>ক্যাটাগরি বেছে নিয়ে সেবার তালিকায় যান।</p></div><div class="category-grid">' + Object.keys(icons).slice(0,8).map(name => '<a class="category-card" href="#find?category=' + encodeURIComponent(name) + '"><span class="icon">' + icons[name] + '</span><b>' + esc(name) + '</b></a>').join('') + '</div></div></section><section class="section"><div class="container"><div class="cta-band"><div><h2>আপনার দক্ষতাই হতে পারে পরবর্তী সুযোগ</h2><p>সেবাদাতা হিসেবে নিবন্ধন করে নিজের কাজের পরিচিতি তৈরি করুন।</p></div><a class="btn" href="#provider-start">প্রোফাইল তৈরি করুন →</a></div></div></section>';
+async function homePage() {
+  let openJobs = [];
+  let openJobsCount = null;
+  let approvedFreelancers = null;
+  let categoryRows = categories || [];
+  if (db) {
+    const [jobsResult, jobsCountResult, providerCountResult, categoriesResult] = await Promise.all([
+      db.from('jobs').select('id,title,description,budget_min,budget_max,budget_type,experience_level,skills,work_mode,status,created_at,category:categories(name)').eq('status','open').order('created_at',{ascending:false}).limit(3),
+      db.from('jobs').select('id',{count:'exact',head:true}).eq('status','open'),
+      db.from('provider_profiles').select('user_id',{count:'exact',head:true}).eq('approval_status','approved'),
+      categoryRows.length ? Promise.resolve({data:categoryRows,error:null}) : db.from('categories').select('id,name,icon').order('name').limit(8)
+    ]);
+    if (!jobsResult.error) openJobs = jobsResult.data || [];
+    if (!jobsCountResult.error) openJobsCount = jobsCountResult.count ?? 0;
+    if (!providerCountResult.error) approvedFreelancers = providerCountResult.count ?? 0;
+    if (!categoriesResult.error && categoriesResult.data) {
+      categoryRows = categoriesResult.data;
+      categories = categoriesResult.data;
+    }
+  }
+  const stat = value => value === null ? '—' : Number(value).toLocaleString('bn-BD');
+  const categoryCards = categoryRows.slice(0,8).map(item =>
+    '<a class="market-category" href="#find?category=' + encodeURIComponent(item.name) + '"><span>' + esc(item.icon || icons[item.name] || '✦') + '</span><b>' + esc(item.name) + '</b><small>দক্ষ পেশাদার খুঁজুন</small></a>'
+  ).join('');
+  return '<section class="market-hero"><div class="container market-hero-grid">' +
+    '<div class="market-hero-copy"><div class="market-eyebrow"><span class="live-dot"></span> বাংলাদেশের ফ্রিল্যান্স মার্কেটপ্লেস</div>' +
+    '<h1>আপনার দক্ষতা।<br><em>আপনার পরবর্তী কাজ।</em></h1>' +
+    '<p>ক্লায়েন্ট কাজ পোস্ট করবেন, ফ্রিল্যান্সাররা প্রস্তাব পাঠাবেন। দক্ষতা, বাজেট ও অভিজ্ঞতা মিলিয়ে কাজের সম্পর্ক তৈরি করুন।</p>' +
+    '<form id="home-search-form" class="market-search"><span class="market-search-icon">⌕</span><input name="q" type="search" maxlength="100" placeholder="কোন কাজ বা দক্ষতা খুঁজছেন? যেমন: ভিডিও এডিটিং"><button class="btn" type="submit">কাজ খুঁজুন</button></form>' +
+    '<div class="market-hero-actions"><a class="btn" href="#post-job">কাজ পোস্ট করুন <span>→</span></a><a class="btn btn-outline" href="#signup-provider">ফ্রিল্যান্সার হিসেবে যোগ দিন</a></div>' +
+    '<div class="market-trust-note">ফোন নম্বর প্রোফাইলে প্রকাশ করা হয় না। যাচাইহীন দক্ষতা বা কাগজপত্রকে Verified দেখানো হয় না।</div></div>' +
+    '<div class="market-hero-visual"><div class="market-visual-top"><span>কাজের প্রক্রিয়া</span><span class="market-mini-badge">সহজ ৩ ধাপ</span></div>' +
+    '<div class="market-step"><span class="market-step-no">01</span><div><b>ক্লায়েন্ট কাজ পোস্ট করেন</b><small>বাজেট, দক্ষতা ও ডেলিভারি লিখুন</small></div><span class="market-step-icon">↗</span></div>' +
+    '<div class="market-step"><span class="market-step-no">02</span><div><b>ফ্রিল্যান্সার প্রস্তাব পাঠান</b><small>মূল্য, সময় ও কাজের পরিকল্পনা দিন</small></div><span class="market-step-icon">✉</span></div>' +
+    '<div class="market-step"><span class="market-step-no">03</span><div><b>ক্লায়েন্ট প্রস্তাব বেছে নেন</b><small>কাজের শর্ত ঠিক করে শুরু করুন</small></div><span class="market-step-icon">✓</span></div>' +
+    '<div class="market-visual-footer"><span class="market-avatar-stack"><i>ক</i><i>ফ</i><i>দ</i></span><span>প্রোফাইল ও দক্ষতা যাচাইয়ের ব্যবস্থা</span><span class="market-shield">◇</span></div></div></div></section>' +
+    '<section class="market-stats"><div class="container market-stats-grid"><div><strong>' + stat(openJobsCount) + '</strong><span>এখন খোলা কাজ</span></div><div><strong>' + stat(approvedFreelancers) + '</strong><span>অনুমোদিত ফ্রিল্যান্সার</span></div><div><strong>' + stat(categoryRows.length || null) + '</strong><span>কাজের ক্যাটাগরি</span></div><div class="market-stats-note">সংখ্যাগুলো লাইভ ডেটাবেস থেকে নেওয়া।</div></div></section>' +
+    '<section class="section"><div class="container"><div class="market-section-head"><div><div class="eyebrow">FIND YOUR NEXT OPPORTUNITY</div><h2>সাম্প্রতিক ফ্রিল্যান্স কাজ</h2><p>বাজেট ও দক্ষতার সঙ্গে মিলিয়ে কাজ বেছে নিন।</p></div><a class="text-link" href="#jobs">সব কাজ দেখুন →</a></div>' +
+    (openJobs.length ? '<div class="job-grid">' + openJobs.map(jobCard).join('') + '</div>' :
+      '<div class="market-empty"><div class="market-empty-icon">▤</div><b>এখনো কোনো কাজ পোস্ট হয়নি</b><p>প্রথম কাজটি পোস্ট করুন, অথবা ফ্রিল্যান্সার হিসেবে নিজের প্রোফাইল তৈরি করুন।</p><a class="btn btn-small" href="#post-job">প্রথম কাজ পোস্ট করুন</a></div>') +
+    '</div></section>' +
+    '<section class="section market-categories-section"><div class="container"><div class="market-section-head"><div><div class="eyebrow">EXPLORE BY SKILL</div><h2>দক্ষতা অনুযায়ী খুঁজুন</h2><p>যে কাজের জন্য পেশাদার প্রয়োজন, সেই ক্যাটাগরি বেছে নিন।</p></div><a class="text-link" href="#find">সব ফ্রিল্যান্সার →</a></div><div class="market-category-grid">' + (categoryCards || '<div class="market-empty">ক্যাটাগরির তথ্য লোড করা যায়নি।</div>') + '</div></div></section>' +
+    '<section class="section"><div class="container"><div class="market-join-grid"><article><div class="eyebrow">FOR CLIENTS</div><h2>আপনার কাজের জন্য সঠিক মানুষ খুঁজুন</h2><p>কাজের বিবরণ ও বাজেট দিন। ফ্রিল্যান্সারদের প্রস্তাব দেখে নিজের পছন্দমতো বেছে নিন।</p><a class="btn" href="#post-job">কাজ পোস্ট করুন</a></article><article><div class="eyebrow">FOR FREELANCERS</div><h2>দক্ষতা দেখান, কাজের প্রস্তাব পাঠান</h2><p>নিজের প্রোফাইল, দক্ষতা ও অভিজ্ঞতা সাজিয়ে ক্লায়েন্টদের কাজের সঙ্গে যুক্ত হন।</p><a class="btn btn-outline" href="#signup-provider">ফ্রিল্যান্সার অ্যাকাউন্ট খুলুন</a></article></div></div></section>';
 }
 function authPage(kind) {
   const isProvider = kind === 'signup-provider';
@@ -183,9 +224,9 @@ function authPage(kind) {
       const accountLine = profile && profile.phone ? esc(profile.phone) : esc(user.phone || '');
       return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>আপনি ইতিমধ্যে লগইন করা আছেন।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2><p class="hint">' + accountLine + '</p></div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div></div></div></section>';
     }
-    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আপনার অ্যাকাউন্টে প্রবেশ করুন</h1><p>মোবাইল নম্বর অথবা ইউজারনেম ও পাসওয়ার্ড ব্যবহার করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-username">মোবাইল নম্বর / ইউজারনেম</label><input id="login-username" name="username" type="text" required maxlength="254" autocomplete="username" placeholder="01XXXXXXXXX অথবা username"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="আপনার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">পুরোনো ইমেইলভিত্তিক অ্যাকাউন্ট থাকলে ইমেইল দিয়েও লগইন করা যাবে।</p></div></div></section>';
+    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আপনার অ্যাকাউন্টে প্রবেশ করুন</h1><p>মোবাইল নম্বর অথবা ইউজারনেম ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-username">মোবাইল নম্বর / ইউজারনেম</label><input id="login-username" name="username" type="text" required maxlength="254" autocomplete="username" placeholder="01XXXXXXXXX অথবা username"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="আপনার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p></div></div></section>';
   }
-  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">ফ্রিল্যান্সার / সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'ফ্রিল্যান্সার অ্যাকাউন্ট খুলুন' : 'সেবাগ্রহীতার অ্যাকাউন্ট খুলুন') + '</h1><p>মোবাইল নম্বর, ইউজারনেম ও পাসওয়ার্ড দিয়েই অ্যাকাউন্ট তৈরি হবে। Gmail লাগবে না।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name" maxlength="100"') + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username"') + formField('বাংলাদেশি মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel" inputmode="tel" maxlength="14" pattern="(01[3-9][0-9]{8}|\\+?8801[3-9][0-9]{8})"') + '<div class="field full"><label for="signup-password">পাসওয়ার্ড</label><input id="signup-password" name="password" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><div class="notice warn">মোবাইল নম্বরটি সঠিক ফরম্যাটে দিতে হবে। এখনই অ্যাকাউন্ট খুলতে SMS বা Gmail লাগবে না। তবে OTP যাচাই না হওয়া পর্যন্ত নম্বরের মালিকানা যাচাইকৃত হিসেবে দেখানো হবে না।</div></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
+  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">ফ্রিল্যান্সার / সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'ফ্রিল্যান্সার অ্যাকাউন্ট খুলুন' : 'সেবাগ্রহীতার অ্যাকাউন্ট খুলুন') + '</h1><p>মোবাইল নম্বর, ইউজারনেম ও পাসওয়ার্ড দিয়েই অ্যাকাউন্ট তৈরি হবে। Gmail লাগবে না।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name" maxlength="100"') + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username"') + formField('বাংলাদেশি মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel" inputmode="tel" maxlength="14" pattern="(01[3-9][0-9]{8}|\\+?8801[3-9][0-9]{8})"') + '<div class="field full"><label for="signup-password">পাসওয়ার্ড</label><input id="signup-password" name="password" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><div class="notice warn">নম্বরের ফরম্যাট ঠিক থাকলে অ্যাকাউন্ট তৈরি হবে—Gmail বা SMS লাগবে না। তবে OTP যাচাই না হওয়া পর্যন্ত নম্বরটি Verified হিসেবে দেখানো হবে না। নিজের ব্যবহারের নম্বর দিন।</div></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
 }
 
 async function findPage() {
@@ -271,6 +312,8 @@ async function jobsPage() {
   }
   const jobs = results.data || [];
   const filter = document.getElementById('jobs-filter');
+  const initialQuery = new URLSearchParams(location.hash.includes('?') ? location.hash.split('?')[1] : '').get('q') || '';
+  filter.elements.q.value = initialQuery;
   const draw = () => {
     const q = String(filter.elements.q.value || '').trim().toLowerCase();
     const type = filter.elements.budget_type.value;
@@ -896,6 +939,14 @@ async function saveAccount(form) {
 }
 
 function bindForms() {
+  const homeSearchForm = document.getElementById('home-search-form');
+  if (homeSearchForm) {
+    homeSearchForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const query = String(new FormData(homeSearchForm).get('q') || '').trim();
+      go('jobs' + (query ? '?q=' + encodeURIComponent(query) : ''));
+    });
+  }
   const skillPicker = document.getElementById('provider-skill-picker');
   if (skillPicker) {
     const valueField = document.getElementById('provider-skills-value');
@@ -999,7 +1050,7 @@ async function render() {
   updateNav();
   const r=route();
   try {
-    if (r.name==='home') app.innerHTML=homePage();
+    if (r.name==='home') app.innerHTML=await homePage();
     else if (r.name==='find') await findPage();
     else if (r.name==='jobs') await jobsPage();
     else if (r.name==='post-job') await postJobPage();
@@ -1014,7 +1065,7 @@ async function render() {
     else if (r.name==='admin') await adminPage();
     else if (r.name==='how') await howPage();
     else if (r.name==='logout') await signOut();
-    else app.innerHTML=homePage();
+    else app.innerHTML=await homePage();
     bindForms();
   } catch (err) {
     app.innerHTML='<section class="page"><div class="container">'+notice('পেজটি লোড করতে সমস্যা হয়েছে: '+(err.message||'অজানা ত্রুটি'),'error')+'<a class="btn" href="#home">হোমে ফিরুন</a></div></section>';
