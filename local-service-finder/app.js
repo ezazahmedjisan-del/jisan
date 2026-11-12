@@ -12,6 +12,7 @@ let profile = null;
 let categories = [];
 let toastTimer = null;
 let afterLoginPath = 'profile';
+let pendingPhoneE164 = null;
 
 const icons = {'ইলেকট্রিশিয়ান':'💡','প্লাম্বার':'🚿','টিউটর':'📚','এসি মেকানিক':'❄️','ক্লিনিং':'🧹','পেইন্টার':'🖌️','কম্পিউটার সার্ভিস':'💻','মিস্ত্রি':'🧱','ফ্রিজ মেকানিক':'🧊','মোবাইল সার্ভিসিং':'📱','কার্পেন্টার / কাঠমিস্ত্রি':'🪚','ওয়েল্ডিং':'🛠️','টাইলস মিস্ত্রি':'🧱','গ্লাস ও অ্যালুমিনিয়াম':'🪟','সিসিটিভি ও নেটওয়ার্ক':'📹','সেলাই ও দর্জি':'🧵','গাড়ি মেরামত':'🚗','মোটরসাইকেল মেকানিক':'🏍️','জেনারেটর / আইপিএস সার্ভিস':'🔋','লন্ড্রি ও ইস্ত্রি':'👕','বাগান পরিচর্যা':'🌱','ক্যাটারিং / রান্নার সেবা':'🍲','ইভেন্ট সাজসজ্জা':'🎉','ফটোগ্রাফি / ভিডিও':'📷','গ্রাফিক ডিজাইন':'🎨','আইটি ও অনলাইন সাপোর্ট':'🖥️','বাসা বদল / মুভিং':'📦','সোলার প্যানেল সার্ভিস':'☀️','স্যানিটারি ও বাথরুম ফিটিং':'🚿','টিভি ও ইলেকট্রনিক্স মেরামত':'📺','পানির পাম্প সার্ভিস':'💧','ফার্নিচার মেরামত':'🛋️','সেলুন / পার্লার':'💇'};
 const LOCAL_CATEGORIES = Object.keys(icons);
@@ -81,10 +82,11 @@ async function ensureProfile() {
   if (profile) return;
   const meta = user.user_metadata || {};
   const fallbackName = user.email ? user.email.split('@')[0] : 'নতুন ব্যবহারকারী';
+  const suggested = String(meta.username || ('user_' + user.id.slice(0,8))).toLowerCase();
   const inserted = await db.from('profiles').insert({
     id: user.id,
     full_name: String(meta.full_name || meta.name || fallbackName),
-    phone: String(meta.phone || ''),
+    username: /^[a-z0-9_]{4,20}$/.test(suggested) ? suggested : ('user_' + user.id.slice(0,8)),
     user_type: meta.user_type === 'provider' ? 'provider' : 'customer'
   });
   if (inserted.error && inserted.error.code !== '23505') throw inserted.error;
@@ -95,6 +97,16 @@ function normalizeBangladeshPhone(value) {
   if (/^01[3-9][0-9]{8}$/.test(raw)) return raw;
   if (/^\+?8801[3-9][0-9]{8}$/.test(raw)) return '0' + raw.replace(/^\+?880/, '');
   return '';
+}
+function toE164BangladeshPhone(value) {
+  const local = normalizeBangladeshPhone(value);
+  return local ? '+880' + local.slice(1) : '';
+}
+function normalizeUsername(value) {
+  return String(value || '').trim().toLowerCase();
+}
+function validUsername(value) {
+  return /^[a-z0-9_]{4,20}$/.test(normalizeUsername(value));
 }
 function formField(label, name, type, placeholder, required, extra) {
   return '<div class="field"><label for="' + esc(name) + '">' + esc(label) + '</label><input id="' + esc(name) + '" name="' + esc(name) + '" type="' + (type || 'text') + '" placeholder="' + esc(placeholder || '') + '"' + (required ? ' required' : '') + ' ' + (extra || '') + '></div>';
@@ -155,14 +167,15 @@ function authPage(kind) {
   const isProvider = kind === 'signup-provider';
   if (kind === 'login') {
     if (user) {
-      const displayName = esc(profile && profile.full_name || user.email || 'আপনার অ্যাকাউন্ট');
+      const displayName = esc(profile && (profile.username || profile.full_name) || 'আপনার অ্যাকাউন্ট');
       const emailLine = user.email ? '<p class="hint">' + esc(user.email) + '</p>' : '';
-      return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc((profile && profile.full_name || user.email || 'U').slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div><p class="hint" style="margin-top:16px">তোমার লগইন নিরাপদভাবে Supabase Auth পরিচালনা করে।</p></div></div></section>';
+      return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div></div></div></section>';
     }
-    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>সহজে লগইন করুন</h1><p>ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-email">ইমেইল ঠিকানা</label><input id="login-email" name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="তোমার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">অন্যের কম্পিউটারে লগইন করলে শেষে লগআউট করবে।</p></div></div></section>';
+    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>ইউজারনেম দিয়ে লগইন</h1><p>আপনার ইউজারনেম ও পাসওয়ার্ড লিখুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-username">ইউজারনেম</label><input id="login-username" name="username" type="text" required minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username" placeholder="যেমন: jisan_01"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="আপনার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">অ্যাকাউন্ট খোলার সময় ইমেইল দিতে হবে; লগইনে ইউজারনেমই ব্যবহার করবেন।</p></div></div></section>';
   }
-  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>সহজেই নিজের অ্যাকাউন্ট তৈরি করুন।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
+  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>নিজস্ব ইউজারনেম ও পাসওয়ার্ড দিয়ে অ্যাকাউন্ট খুলুন।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি অক্ষর, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"><p class="hint">ইমেইলটি অ্যাকাউন্ট নিশ্চিতকরণ ও অ্যাকাউন্ট পুনরুদ্ধারের জন্য; লগইনে ইউজারনেম ব্যবহার করবেন।</p></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
 }
+
 async function findPage() {
   const parsed = route();
   const query = new URLSearchParams(location.hash.includes('?') ? location.hash.split('?')[1] : '');
@@ -240,15 +253,16 @@ async function requestPage(serviceId) {
 }
 async function providerStartPage() {
   if (!user) {
-    app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">BECOME A PROVIDER</div><h1>নিজের সেবার প্রোফাইল তৈরি করুন</h1><p>সেবাদাতা হিসেবে নিবন্ধন করে লগইন করুন, তারপর দক্ষতা ও কাজের তথ্য জমা দিন।</p></div><div class="form-actions"><a class="btn" href="#signup-provider">সেবাদাতা অ্যাকাউন্ট খুলুন</a><a class="btn btn-outline" href="#login">লগইন</a></div></div></div></section>';
+    app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">BECOME A PROVIDER</div><h1>নিজের সেবার প্রোফাইল তৈরি করুন</h1><p>ইউজারনেম দিয়ে অ্যাকাউন্ট খুলে মোবাইল নম্বর যাচাই করুন, তারপর দক্ষতা ও কাজের তথ্য দিন।</p></div><div class="form-actions"><a class="btn" href="#signup-provider">সেবাদাতা অ্যাকাউন্ট খুলুন</a><a class="btn btn-outline" href="#login">লগইন</a></div></div></div></section>';
     return;
   }
   if (!db) { app.innerHTML = backendNotice(); return; }
   await loadProfile();
   if (!profile || profile.user_type !== 'provider') {
-    app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><h1>সেবাদাতা অ্যাকাউন্ট প্রয়োজন</h1><p>আপনি সেবাগ্রহীতা হিসেবে লগইন করেছেন। সেবাদাতা প্রোফাইলের জন্য আলাদা সেবাদাতা অ্যাকাউন্ট তৈরি করুন।</p><a class="btn" href="#signup-provider">সেবাদাতা অ্যাকাউন্ট খুলুন</a></div></div></section>';
+    app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><h1>সেবাদাতা অ্যাকাউন্ট প্রয়োজন</h1><p>প্রোফাইল থেকে সেবাদাতা হিসেবে অ্যাকাউন্টের ধরন বেছে নিয়ে আবার চেষ্টা করুন।</p><a class="btn" href="#profile">প্রোফাইলে যান</a></div></div></section>';
     return;
   }
+  if (!profile.phone_verified_at) { go('complete-profile'); return; }
   const existing = await db.from('provider_profiles').select('*').eq('user_id',user.id).maybeSingle();
   if (existing.data) {
     app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><h1>আপনার সেবাদাতা প্রোফাইল</h1><p>'+esc(existing.data.business_name)+'</p>'+notice('প্রোফাইলের অবস্থা: '+(statusLabels[existing.data.approval_status] || existing.data.approval_status),existing.data.approval_status==='approved'?'success':'warn')+'<a class="btn" href="#dashboard">ড্যাশবোর্ডে যান</a></div></div></section>';
@@ -258,9 +272,10 @@ async function providerStartPage() {
     const cr = await db.from('categories').select('id,name').order('name');
     if (!cr.error) categories = cr.data || [];
   }
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">PROVIDER PROFILE</div><h1>আপনার সেবার পরিচিতি দিন</h1><p>তথ্য জমা দিলে যাচাইয়ের জন্য অপেক্ষায় থাকবে। অনুমোদিত না হওয়া পর্যন্ত পাবলিক তালিকায় দেখাবে না।</p></div><form id="provider-form" class="form-grid">' + formField('প্রতিষ্ঠান / সেবার নাম','business_name','text','যেমন: জিসান ইলেকট্রিক সার্ভিস',true) + formField('অভিজ্ঞতা (বছর)','experience_years','number','যেমন: ৩',true,'min="0" max="60"') + districtSelectField('জেলা','district',true,false) + areaSelectField('উপজেলা / থানা','area',true,false) + '<div class="field full"><label>আপনার পরিচিতি ও দক্ষতা</label><textarea name="bio" required minlength="20" placeholder="কোন ধরনের কাজ করেন, কী অভিজ্ঞতা আছে…"></textarea></div>' + selectField('প্রধান সেবার ধরন','category_id',categoryOptions(),true) + formField('সেবার শিরোনাম','title','text','যেমন: বাসাবাড়ির বৈদ্যুতিক মেরামত',true) + '<div class="field full"><label>সেবার বিস্তারিত</label><textarea name="description" required minlength="20" placeholder="কী কী কাজ করেন এবং কীভাবে সেবা দেন…"></textarea></div>' + formField('শুরুর মূল্য (টাকা)','price_from','number','যেমন: ৫০০',false,'min="0" step="1"') + selectField('মূল্যের ধরন','price_type','<option value="negotiable">আলোচনা সাপেক্ষে</option><option value="starting">শুরু ৳… থেকে</option><option value="fixed">নির্দিষ্ট মূল্য</option>',true) + '<div class="field full"><button class="btn" type="submit">প্রোফাইল জমা দিন</button></div></form></div></div></section>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">FREELANCER PROFILE</div><h1>আপনার দক্ষতার প্রোফাইল তৈরি করুন</h1><p>দক্ষতা, বাস্তব কাজের অভিজ্ঞতা ও প্রমাণপত্র দিন। ফাইলগুলো ব্যক্তিগতভাবে সংরক্ষিত থাকবে এবং অ্যাডমিন যাচাই করবে।</p></div><form id="provider-form" class="form-grid">' + formField('পেশাগত টাইটেল','professional_title','text','যেমন: গ্রাফিক ডিজাইনার / ইলেকট্রিশিয়ান',true) + formField('প্রতিষ্ঠান / সেবার নাম','business_name','text','যেমন: জিসান ইলেকট্রিক সার্ভিস',true) + formField('অভিজ্ঞতা (বছর)','experience_years','number','যেমন: ৩',true,'min="0" max="60"') + districtSelectField('জেলা','district',true,false) + areaSelectField('উপজেলা / থানা','area',true,false) + '<div class="field full"><label for="provider-skills">আপনার দক্ষতা (কমা দিয়ে আলাদা করুন)</label><textarea id="provider-skills" name="skills" required minlength="2" placeholder="যেমন: Photoshop, Video Editing, Motion Graphics"></textarea><p class="hint">সর্বোচ্চ ২০টি দক্ষতা দিন। এগুলো প্রথমে স্ব-ঘোষিত থাকবে; প্রমাণ যাচাই না হওয়া পর্যন্ত Verified দেখাবে না।</p></div><div class="field full"><label>আপনার পরিচিতি ও দক্ষতার বিবরণ</label><textarea name="bio" required minlength="30" placeholder="কী ধরনের কাজ করেন, কী সমস্যা সমাধান করেন, কী অভিজ্ঞতা আছে…"></textarea></div><div class="field full"><label>আগের কাজের পদ / ভূমিকা (ঐচ্ছিক)</label><input name="experience_role" type="text" maxlength="100" placeholder="যেমন: Junior Video Editor"></div><div class="field full"><label>প্রতিষ্ঠান বা ক্লায়েন্টের নাম (ঐচ্ছিক)</label><input name="experience_organization" type="text" maxlength="120" placeholder="প্রতিষ্ঠান / ক্লায়েন্ট / ব্যক্তিগত প্রকল্প"></div><div class="field full"><label>অভিজ্ঞতার বিবরণ (ঐচ্ছিক)</label><textarea name="experience_description" rows="3" placeholder="কী কাজ করেছেন, দায়িত্ব কী ছিল, কী ফল পেয়েছেন…"></textarea></div><div class="field full"><label>সার্টিফিকেট / কোর্সের প্রমাণপত্র (PDF, JPG, PNG, WebP; প্রতি ফাইল সর্বোচ্চ ১০ MB)</label><input name="certificate_files" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple><p class="hint">শুধু প্রাসঙ্গিক সার্টিফিকেট দিন। NID, পাসপোর্ট, ব্যাংক তথ্য বা অপ্রয়োজনীয় ব্যক্তিগত কাগজ আপলোড করবেন না।</p></div><div class="field full"><label>অভিজ্ঞতার প্রমাণ / কাজের নমুনা (PDF, JPG, PNG, WebP; প্রতি ফাইল সর্বোচ্চ ১০ MB)</label><input name="experience_files" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple></div><div class="field full"><label>প্রমাণপত্র প্রদানকারী প্রতিষ্ঠান (ঐচ্ছিক)</label><input name="document_issuer" type="text" maxlength="140" placeholder="যেমন: প্রশিক্ষণ প্রতিষ্ঠান / কোম্পানি"></div>' + selectField('প্রধান সেবার ধরন','category_id',categoryOptions(),true) + formField('সেবার শিরোনাম','title','text','যেমন: বাসাবাড়ির বৈদ্যুতিক মেরামত',true) + '<div class="field full"><label>সেবার বিস্তারিত</label><textarea name="description" required minlength="20" placeholder="কী কী কাজ করেন এবং কীভাবে সেবা দেন…"></textarea></div>' + formField('শুরুর মূল্য (টাকা)','price_from','number','যেমন: ৫০০',false,'min="0" step="1"') + selectField('মূল্যের ধরন','price_type','<option value="negotiable">আলোচনা সাপেক্ষে</option><option value="starting">শুরু ৳… থেকে</option><option value="fixed">নির্দিষ্ট মূল্য</option>',true) + '<div class="field full"><button class="btn" type="submit">প্রোফাইল জমা দিন</button></div></form></div></div></section>';
   attachLocationSelectors(document.getElementById('provider-form'));
 }
+
 async function dashboardPage() {
   if (!user) { go('login'); return; }
   if (!db) { app.innerHTML = backendNotice(); return; }
@@ -296,31 +311,75 @@ async function dashboardPage() {
 async function completeProfilePage() {
   if (!user) { go('login'); return; }
   await ensureProfile();
-  if (profile && profile.phone) { go('profile'); return; }
+  if (profile && profile.phone_verified_at) { go(profile.user_type === 'provider' ? 'provider-start' : 'profile'); return; }
   const meta = user.user_metadata || {};
-  const displayName = profile && profile.full_name || meta.full_name || meta.name || 'আপনার নাম';
+  const displayName = profile && profile.full_name || meta.full_name || 'আপনার নাম';
+  const suggestedUsername = profile && profile.username || meta.username || '';
   const emailText = user.email || '';
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">YOUR LOCAL SERVICE FINDER PROFILE</div><h1>আপনার নিজস্ব প্রোফাইল তৈরি করুন</h1><p>নাম ও ইমেইল Google থেকে এসেছে। শুধু মোবাইল নম্বর দিন এবং কীভাবে সাইটটি ব্যবহার করবেন বেছে নিন।</p></div><div class="profile-top" style="margin:18px 0 22px"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:19px">' + esc(displayName) + '</h2><p class="hint">' + esc(emailText) + '</p></div></div><form id="initial-profile-form" class="form-grid">' + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel" inputmode="tel" maxlength="14"') + '<div class="field full"><label for="initial-user-type">আপনি কীভাবে ব্যবহার করবেন?</label><select id="initial-user-type" name="user_type" required><option value="customer">আমি সেবা খুঁজব</option><option value="provider">আমি নিজের সেবা / দক্ষতা দিয়ে কাজ দিতে চাই</option></select><p class="hint">পরে চাইলে সেবাদাতা হওয়ার বিস্তারিত প্রোফাইলও তৈরি করতে পারবেন।</p></div><div class="field full"><button class="btn" type="submit">প্রোফাইল তৈরি করুন</button></div></form><p class="hint">আপনার ফোন নম্বর এই ওয়েবসাইটের প্রোফাইলে সংরক্ষিত হবে। এই ধাপে SMS/OTP দিয়ে নম্বর যাচাই হচ্ছে না।</p></div></div></section>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">YOUR LOCAL SERVICE FINDER PROFILE</div><h1>নিজস্ব প্রোফাইল সম্পূর্ণ করুন</h1><p>একটি ইউজারনেম নিশ্চিত করুন, মোবাইল নম্বর দিন এবং SMS কোড দিয়ে নম্বরের মালিকানা যাচাই করুন।</p></div><div class="profile-top" style="margin:18px 0 22px"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:19px">' + esc(displayName) + '</h2><p class="hint">' + esc(emailText) + '</p></div></div><form id="initial-profile-form" class="form-grid">' + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username"') + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel" inputmode="tel" maxlength="14"') + '<div class="field full"><label for="initial-user-type">আপনি কীভাবে ব্যবহার করবেন?</label><select id="initial-user-type" name="user_type" required><option value="customer">আমি সেবা খুঁজব</option><option value="provider">আমি নিজের সেবা / দক্ষতা দিয়ে কাজ দিতে চাই</option></select><p class="hint">সেবাদাতা হলে পরের ধাপে দক্ষতা, কাজের অভিজ্ঞতা ও সার্টিফিকেট যোগ করতে পারবেন।</p></div>' + formField('পেশাগত পরিচয় (ঐচ্ছিক)','professional_title','text','যেমন: গ্রাফিক ডিজাইনার / ইলেকট্রিশিয়ান',false) + '<div class="field full"><label for="initial-overview">নিজের সম্পর্কে সংক্ষেপে</label><textarea id="initial-overview" name="overview" rows="3" placeholder="আপনার দক্ষতা, আগ্রহ ও কাজের ধরন…"></textarea></div><div class="field full"><button class="btn" type="submit">মোবাইলে OTP পাঠান</button></div></form><div id="phone-otp-panel" class="notice warn hidden"><b>যাচাইকরণ কোড পাঠানো হয়েছে</b><p>মোবাইলে পাওয়া ৬ সংখ্যার কোডটি লিখুন।</p><form id="phone-otp-form" class="form-grid">' + formField('৬ সংখ্যার OTP','token','text','123456',true,'inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"') + '<div class="field full"><button class="btn" type="submit">নম্বর যাচাই করুন</button></div></form></div><p class="hint">OTP সফল না হওয়া পর্যন্ত নম্বরটি Verified হবে না। নম্বর যাচাইয়ের জন্য সাইটে SMS সেবা সক্রিয় থাকা প্রয়োজন।</p></div></div></section>';
+  const form = document.getElementById('initial-profile-form');
+  form.elements.username.value = suggestedUsername;
+  form.elements.user_type.value = profile && profile.user_type || meta.user_type || 'customer';
+  form.elements.professional_title.value = profile && profile.professional_title || '';
+  form.elements.overview.value = profile && profile.overview || '';
+  if (profile && profile.phone) form.elements.phone.value = profile.phone;
 }
 async function completeInitialProfile(form) {
   if (!db || !user) return;
   const data = new FormData(form);
-  const phone = normalizeBangladeshPhone(data.get('phone'));
-  if (!phone) { toast('সঠিক বাংলাদেশি মোবাইল নম্বর লিখুন, যেমন 01XXXXXXXXX।'); return; }
+  const username = normalizeUsername(data.get('username'));
+  const phone = toE164BangladeshPhone(data.get('phone'));
   const role = data.get('user_type') === 'provider' ? 'provider' : 'customer';
-  const meta = user.user_metadata || {};
-  const fullName = profile && profile.full_name || meta.full_name || meta.name || (user.email ? user.email.split('@')[0] : 'নতুন ব্যবহারকারী');
-  const result = await db.from('profiles').update({
-    full_name: String(fullName).trim(),
-    phone,
-    user_type: role
+  const title = String(data.get('professional_title') || '').trim();
+  const overview = String(data.get('overview') || '').trim();
+  if (!validUsername(username)) { toast('সঠিক ইউজারনেম দিন: ৪–২০ অক্ষর, ইংরেজি/সংখ্যা/underscore।'); return; }
+  if (!phone) { toast('সঠিক বাংলাদেশি মোবাইল নম্বর লিখুন, যেমন 01XXXXXXXXX।'); return; }
+
+  const profileUpdate = await db.from('profiles').update({
+    username,
+    user_type: role,
+    professional_title: title,
+    overview
   }).eq('id', user.id);
-  if (result.error) { toast('প্রোফাইল সংরক্ষণ হয়নি। আবার চেষ্টা করুন।'); return; }
+  if (profileUpdate.error) {
+    const message = (profileUpdate.error.message || '').toLowerCase();
+    toast(message.includes('duplicate') ? 'এই ইউজারনেমটি আগে থেকেই নেওয়া হয়েছে।' : 'প্রোফাইল তথ্য সংরক্ষণ হয়নি। আবার চেষ্টা করুন।');
+    return;
+  }
+  const authUpdate = await db.auth.updateUser({ phone });
+  if (authUpdate.error) {
+    toast('SMS OTP পাঠানো যায়নি। Supabase-এ SMS Provider সেটআপ না থাকলে নম্বর যাচাই শুরু হবে না।');
+    return;
+  }
+  pendingPhoneE164 = phone;
+  const panel = document.getElementById('phone-otp-panel');
+  if (panel) panel.classList.remove('hidden');
+  toast('OTP পাঠানোর অনুরোধ হয়েছে। SMS এলে কোডটি লিখুন।');
+}
+async function verifyProfilePhone(form) {
+  if (!db || !user || !pendingPhoneE164) return;
+  const data = new FormData(form);
+  const token = String(data.get('token') || '').trim();
+  if (!/^[0-9]{6}$/.test(token)) { toast('৬ সংখ্যার OTP লিখুন।'); return; }
+  const verified = await db.auth.verifyOtp({
+    phone: pendingPhoneE164,
+    token,
+    type: 'phone_change'
+  });
+  if (verified.error) { toast('OTP সঠিক নয় বা মেয়াদ শেষ হয়েছে। আবার চেষ্টা করুন।'); return; }
+  user = verified.data.user || user;
+  const saved = await db.from('profiles').update({ phone: pendingPhoneE164 }).eq('id', user.id);
+  if (saved.error) {
+    toast('নম্বর যাচাই হয়েছে, কিন্তু প্রোফাইলে সংরক্ষণ হয়নি। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।');
+    return;
+  }
+  pendingPhoneE164 = null;
   await loadProfile();
-  toast('আপনার নিজস্ব প্রোফাইল তৈরি হয়েছে।');
-  if (role === 'provider') go('provider-start');
+  toast('মোবাইল নম্বর যাচাই সম্পন্ন হয়েছে।');
+  if (profile && profile.user_type === 'provider') go('provider-start');
   else go('profile');
 }
+
 
 async function accountPage() {
   if (!user) { go('login'); return; }
@@ -328,12 +387,18 @@ async function accountPage() {
   const displayName = profile && profile.full_name || 'আপনার নাম';
   const roleLabel = profile && profile.user_type === 'provider' ? 'সেবাদাতা অ্যাকাউন্ট' : 'সেবাগ্রহীতা অ্যাকাউন্ট';
   const emailText = user.email || 'ইমেইল যুক্ত নেই';
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="profile-top" style="margin-bottom:18px"><div class="profile-avatar">'+esc(displayName.slice(0,1).toUpperCase())+'</div><div><div class="eyebrow">MY PROFILE</div><h1>'+esc(displayName)+'</h1><p>'+esc(emailText)+'</p><p class="hint">'+esc(roleLabel)+'</p></div></div><div class="form-actions" style="margin:0 0 22px"><a class="btn btn-outline" href="#dashboard">আমার ড্যাশবোর্ড</a><a class="btn btn-quiet" href="#logout">লগআউট</a></div><div class="page-head"><div class="eyebrow">PROFILE SETTINGS</div><h2>প্রোফাইল তথ্য</h2><p>আপনার নাম, যোগাযোগ ও এলাকার তথ্য হালনাগাদ করুন।</p></div><form id="account-form" class="form-grid">'+formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel" inputmode="tel" maxlength="14"') + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form></div></div></section>';
-  const form=document.getElementById('account-form');
+  const phoneStatus = profile && profile.phone_verified_at
+    ? '<span class="status approved">মোবাইল যাচাইকৃত</span>'
+    : '<span class="status pending">মোবাইল যাচাই বাকি</span>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="profile-top" style="margin-bottom:18px"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><div class="eyebrow">MY PROFILE</div><h1>' + esc(displayName) + '</h1><p>@' + esc(profile && profile.username || '') + '</p><p>' + esc(emailText) + '</p><p class="hint">' + esc(roleLabel) + '</p></div></div><div class="form-actions" style="margin:0 0 22px"><a class="btn btn-outline" href="#dashboard">আমার ড্যাশবোর্ড</a><a class="btn btn-quiet" href="#logout">লগআউট</a></div><div class="notice"><b>মোবাইল নম্বর:</b> ' + esc(profile && profile.phone || 'এখনো যোগ করা হয়নি') + ' ' + phoneStatus + (profile && profile.phone_verified_at ? '' : ' <a class="text-link" href="#complete-profile">যাচাই সম্পন্ন করুন</a>') + '</div><div class="page-head"><div class="eyebrow">PROFILE SETTINGS</div><h2>প্রোফাইল তথ্য</h2><p>আপনার পরিচিতি ও এলাকার তথ্য হালনাগাদ করুন। মোবাইল নম্বর বদলাতে হলে আবার OTP যাচাই করতে হবে।</p></div><form id="account-form" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}"') + formField('পেশাগত পরিচয়','professional_title','text','যেমন: ভিডিও এডিটর / টিউটর',false) + '<div class="field full"><label for="account-overview">নিজের সম্পর্কে</label><textarea id="account-overview" name="overview" rows="4" placeholder="দক্ষতা, কাজের অভিজ্ঞতা ও আগ্রহ…"></textarea></div>' + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form><p class="hint">সার্টিফিকেট/অভিজ্ঞতার প্রমাণপত্র আপনার ব্যক্তিগত ফাইলে থাকবে; অনুমোদন না হওয়া পর্যন্ত Verified দেখাবে না।</p></div></div></section>';
+  const form = document.getElementById('account-form');
   attachLocationSelectors(form, profile && profile.district || '', profile && profile.area || '');
-  form.elements.full_name.value=profile && profile.full_name || '';
-  form.elements.phone.value=profile && profile.phone || '';
+  form.elements.full_name.value = profile && profile.full_name || '';
+  form.elements.username.value = profile && profile.username || '';
+  form.elements.professional_title.value = profile && profile.professional_title || '';
+  form.elements.overview.value = profile && profile.overview || '';
 }
+
 async function adminPage() {
   if (!user || !db) { go('login'); return; }
   const check = await db.from('admin_users').select('user_id').eq('user_id',user.id).maybeSingle();
@@ -362,52 +427,75 @@ async function howPage() {
 async function signUp(form) {
   if (!db) return;
   const data = new FormData(form);
-  const role = form.dataset.role;
-  const phone = normalizeBangladeshPhone(data.get('phone'));
-  if (!phone) { toast('সঠিক বাংলাদেশি মোবাইল নম্বর লিখুন, যেমন 01XXXXXXXXX।'); return; }
-  if (!data.get('terms')) { toast('ব্যবহারের নিয়মে সম্মতি দিন।'); return; }
-  const result = await db.auth.signUp({
-    email:String(data.get('email')).trim(),
-    password:String(data.get('password')),
-    options:{
-      data:{full_name:String(data.get('full_name')).trim(),phone,user_type:role},
-      emailRedirectTo:window.location.origin
-    }
-  });
-  if (result.error) { toast(result.error.message); return; }
-  if (result.data.session) {
-    user = result.data.user;
-    await ensureProfile();
-    toast('অ্যাকাউন্ট তৈরি হয়েছে।');
-    go(role==='provider'?'provider-start':'find');
-  } else {
-    app.querySelector('.form-card').insertAdjacentHTML('afterbegin',notice('নিবন্ধনের লিংক আপনার ইমেইলে পাঠানো হয়েছে। ইমেইল যাচাই করে তারপর লগইন করুন।','success'));
-    form.reset();
-  }
-}
-async function signInWithPassword(form) {
-  if (!db) return;
-  const data = new FormData(form);
+  const role = form.dataset.role === 'provider' ? 'provider' : 'customer';
+  const username = normalizeUsername(data.get('username'));
+  const fullName = String(data.get('full_name') || '').trim();
   const email = String(data.get('email') || '').trim().toLowerCase();
   const password = String(data.get('password') || '');
-  if (!email || !password) { toast('ইমেইল ও পাসওয়ার্ড লিখুন।'); return; }
-  const result = await db.auth.signInWithPassword({ email, password });
+  if (!validUsername(username)) { toast('ইউজারনেম ৪–২০ অক্ষরের হতে হবে; শুধু ইংরেজি অক্ষর, সংখ্যা ও _ ব্যবহার করুন।'); return; }
+  if (!fullName || !email || password.length < 8) { toast('সব তথ্য সঠিকভাবে পূরণ করুন।'); return; }
+  if (!data.get('terms')) { toast('ব্যবহারের নিয়মে সম্মতি দিন।'); return; }
+
+  const result = await db.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: fullName, username, user_type: role },
+      emailRedirectTo: window.location.origin
+    }
+  });
   if (result.error) {
-    if ((result.error.message || '').toLowerCase().includes('email not confirmed')) {
-      toast('আগে ইমেইল যাচাই সম্পন্ন করুন।');
+    const message = (result.error.message || '').toLowerCase();
+    if (message.includes('profiles_username_lower_unique') || message.includes('duplicate key')) {
+      toast('এই ইউজারনেমটি আগে থেকেই নেওয়া হয়েছে। অন্য ইউজারনেম বেছে নিন।');
     } else {
-      toast('ইমেইল বা পাসওয়ার্ড সঠিক নয়। আবার চেষ্টা করুন।');
+      toast('অ্যাকাউন্ট তৈরি হয়নি: ' + result.error.message);
     }
     return;
   }
-  user = result.data.user;
+  if (result.data.session) {
+    user = result.data.user;
+    await ensureProfile();
+    toast('অ্যাকাউন্ট তৈরি হয়েছে। এখন নম্বর যাচাই করুন।');
+    go('complete-profile');
+  } else {
+    app.querySelector('.form-card').insertAdjacentHTML('afterbegin',notice('নিবন্ধনের নিশ্চিতকরণ লিংক আপনার ইমেইলে পাঠানো হয়েছে। ইমেইল নিশ্চিত করে ইউজারনেম ও পাসওয়ার্ড দিয়ে লগইন করুন।','success'));
+    form.reset();
+  }
+}
+async function signInWithUsername(form) {
+  if (!db) return;
+  const data = new FormData(form);
+  const username = normalizeUsername(data.get('username'));
+  const password = String(data.get('password') || '');
+  if (!validUsername(username) || !password) { toast('ইউজারনেম ও পাসওয়ার্ড সঠিকভাবে লিখুন।'); return; }
+
+  const result = await db.functions.invoke('username-login', {
+    body: { username, password }
+  });
+  const session = result.data;
+  if (result.error || !session || !session.access_token || !session.refresh_token) {
+    toast((session && session.error) || 'ইউজারনেম বা পাসওয়ার্ড সঠিক নয়। ইমেইল নিশ্চিত করা হয়েছে কি না দেখুন।');
+    return;
+  }
+
+  const saved = await db.auth.setSession({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token
+  });
+  if (saved.error || !saved.data.session) {
+    toast('লগইন সেশন তৈরি হয়নি। আবার চেষ্টা করুন।');
+    return;
+  }
+  user = saved.data.user || saved.data.session.user;
   await ensureProfile();
   toast('লগইন সফল হয়েছে।');
-  if (!profile || !profile.phone) { go('complete-profile'); return; }
+  if (!profile || !profile.phone_verified_at) { go('complete-profile'); return; }
   const destination = afterLoginPath || 'profile';
   afterLoginPath = 'profile';
   go(destination);
 }
+
 async function signOut() {
   if (!db) return;
   const result=await db.auth.signOut({scope:'local'});
@@ -416,25 +504,111 @@ async function signOut() {
   toast('এই ডিভাইস থেকে লগআউট হয়েছে।');
   go('home');
 }
+async function uploadProviderDocuments(fileList, documentType, issuer) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return 0;
+  const allowed = new Set(['application/pdf','image/jpeg','image/png','image/webp']);
+  if (files.length > 5) throw new Error('এক ধাপে সর্বোচ্চ ৫টি ফাইল আপলোড করতে পারবেন।');
+  let uploaded = 0;
+  for (const file of files) {
+    if (!allowed.has(file.type) || file.size > 10 * 1024 * 1024) {
+      throw new Error('ফাইলের ধরন বা সাইজ ঠিক নয়: ' + file.name);
+    }
+    const safeName = file.name.normalize('NFKD').replace(/[^A-Za-z0-9._-]/g,'_').slice(-90) || 'document';
+    const filePath = user.id + '/' + crypto.randomUUID() + '-' + safeName;
+    const stored = await db.storage.from('provider-evidence').upload(filePath,file,{
+      contentType:file.type,
+      upsert:false
+    });
+    if (stored.error) throw new Error('ফাইল আপলোড হয়নি: ' + stored.error.message);
+    const row = await db.from('provider_documents').insert({
+      user_id:user.id,
+      document_type:documentType,
+      title:file.name.slice(0,140),
+      issuer:issuer || null,
+      file_path:filePath,
+      verification_status:'pending'
+    });
+    if (row.error) {
+      await db.storage.from('provider-evidence').remove([filePath]);
+      throw new Error('ফাইলের তথ্য সংরক্ষণ হয়নি: ' + row.error.message);
+    }
+    uploaded += 1;
+  }
+  return uploaded;
+}
 async function saveProvider(form) {
   if (!db || !user) return;
-  const d=new FormData(form);
-  const locationUpdate=await db.from('profiles').update({district:String(d.get('district')).trim(),area:String(d.get('area')).trim()}).eq('id',user.id);
-  if(locationUpdate.error){toast('এলাকার তথ্য সংরক্ষণ হয়নি: '+locationUpdate.error.message);return;}
-  const provider={user_id:user.id,business_name:String(d.get('business_name')).trim(),bio:String(d.get('bio')).trim(),district:String(d.get('district')).trim(),area:String(d.get('area')).trim(),experience_years:Number(d.get('experience_years'))};
-  const p=await db.from('provider_profiles').insert(provider);
-  if(p.error){toast('প্রোফাইল তৈরি হয়নি: '+p.error.message);return;}
-  const service={
-    provider_id:user.id,category_id:Number(d.get('category_id')),
-    title:String(d.get('title')).trim(),description:String(d.get('description')).trim(),
+  const d = new FormData(form);
+  const skills = Array.from(new Set(String(d.get('skills') || '').split(/[,،;\\n]/).map(x=>x.trim()).filter(Boolean))).slice(0,20);
+  if (!skills.length) { toast('কমপক্ষে একটি দক্ষতা লিখুন।'); return; }
+  const title = String(d.get('professional_title') || '').trim();
+  const locationUpdate = await db.from('profiles').update({
+    district:String(d.get('district')).trim(),
+    area:String(d.get('area')).trim(),
+    professional_title:title,
+    overview:String(d.get('bio')).trim()
+  }).eq('id',user.id);
+  if (locationUpdate.error) { toast('প্রোফাইলের তথ্য সংরক্ষণ হয়নি: '+locationUpdate.error.message); return; }
+
+  const provider = {
+    user_id:user.id,
+    business_name:String(d.get('business_name')).trim(),
+    bio:String(d.get('bio')).trim(),
+    district:String(d.get('district')).trim(),
+    area:String(d.get('area')).trim(),
+    experience_years:Number(d.get('experience_years'))
+  };
+  const p = await db.from('provider_profiles').insert(provider);
+  if (p.error) { toast('সেবাদাতা প্রোফাইল তৈরি হয়নি: '+p.error.message); return; }
+
+  const skillRows = skills.map(skill=>({
+    user_id:user.id,
+    skill_name:skill,
+    skill_level:'intermediate',
+    years_experience:Number(d.get('experience_years')) || 0,
+    verification_status:'unverified'
+  }));
+  const skillSave = await db.from('provider_skills').insert(skillRows);
+  if (skillSave.error) { toast('প্রোফাইল হয়েছে, কিন্তু দক্ষতার তালিকা সংরক্ষণ হয়নি: '+skillSave.error.message); return; }
+
+  const experienceRole = String(d.get('experience_role') || '').trim();
+  const experienceDescription = String(d.get('experience_description') || '').trim();
+  if (experienceRole && experienceDescription) {
+    const exp = await db.from('provider_experiences').insert({
+      user_id:user.id,
+      role_title:experienceRole,
+      organization:String(d.get('experience_organization') || '').trim() || null,
+      description:experienceDescription,
+      verification_status:'unverified'
+    });
+    if (exp.error) { toast('অভিজ্ঞতার তথ্য সংরক্ষণ হয়নি: '+exp.error.message); return; }
+  }
+
+  const issuer = String(d.get('document_issuer') || '').trim();
+  let certificateCount = 0, experienceFileCount = 0;
+  try {
+    certificateCount = await uploadProviderDocuments(form.elements.certificate_files.files,'certificate',issuer);
+    experienceFileCount = await uploadProviderDocuments(form.elements.experience_files.files,'experience',issuer);
+  } catch(err) {
+    toast(err.message || 'প্রমাণপত্র আপলোড হয়নি।');
+    return;
+  }
+
+  const service = {
+    provider_id:user.id,
+    category_id:Number(d.get('category_id')),
+    title:String(d.get('title')).trim(),
+    description:String(d.get('description')).trim(),
     price_from:d.get('price_from')?Number(d.get('price_from')):null,
     price_type:String(d.get('price_type')||'negotiable')
   };
-  const s=await db.from('services').insert(service);
-  if(s.error){toast('প্রোফাইল হয়েছে, কিন্তু সেবা যোগ হয়নি: '+s.error.message);go('dashboard');return;}
-  toast('প্রোফাইল ও সেবা যাচাইয়ের জন্য জমা হয়েছে।');
+  const serviceSave = await db.from('services').insert(service);
+  if (serviceSave.error) { toast('প্রোফাইল ও প্রমাণপত্র সংরক্ষিত, কিন্তু সেবা যোগ হয়নি: '+serviceSave.error.message); go('dashboard'); return; }
+  toast('প্রোফাইল জমা হয়েছে। দক্ষতা স্ব-ঘোষিত; ' + (certificateCount+experienceFileCount) + 'টি প্রমাণপত্র অ্যাডমিন যাচাইয়ের অপেক্ষায়।');
   go('dashboard');
 }
+
 async function sendRequest(form) {
   if (!db || !user) return;
   const d=new FormData(form);
@@ -448,23 +622,34 @@ async function sendRequest(form) {
   go('dashboard');
 }
 async function saveAccount(form) {
-  if(!db||!user)return;
-  const d=new FormData(form);
-  const phone = normalizeBangladeshPhone(d.get('phone'));
-  if (!phone) { toast('সঠিক বাংলাদেশি মোবাইল নম্বর লিখুন, যেমন 01XXXXXXXXX।'); return; }
-  const result=await db.from('profiles').update({
+  if (!db || !user) return;
+  const d = new FormData(form);
+  const username = normalizeUsername(d.get('username'));
+  if (!validUsername(username)) { toast('সঠিক ইউজারনেম দিন: ৪–২০ অক্ষর, ইংরেজি/সংখ্যা/underscore।'); return; }
+  const result = await db.from('profiles').update({
+    username,
     full_name:String(d.get('full_name')).trim(),
-    phone,
-    district:String(d.get('district')||'').trim(),
-    area:String(d.get('area')||'').trim()
+    professional_title:String(d.get('professional_title') || '').trim(),
+    overview:String(d.get('overview') || '').trim(),
+    district:String(d.get('district') || '').trim(),
+    area:String(d.get('area') || '').trim()
   }).eq('id',user.id);
-  if(result.error){toast('তথ্য সংরক্ষণ হয়নি: '+result.error.message);return;}
+  if (result.error) {
+    toast((result.error.message || '').toLowerCase().includes('duplicate') ? 'এই ইউজারনেমটি অন্য কেউ ব্যবহার করছে।' : 'তথ্য সংরক্ষণ হয়নি: '+result.error.message);
+    return;
+  }
   if (profile && profile.user_type === 'provider') {
-    const providerUpdate = await db.from('provider_profiles').update({district:String(d.get('district')||'').trim(),area:String(d.get('area')||'').trim()}).eq('user_id',user.id);
+    const providerUpdate = await db.from('provider_profiles').update({
+      district:String(d.get('district') || '').trim(),
+      area:String(d.get('area') || '').trim()
+    }).eq('user_id',user.id);
     if (providerUpdate.error) { toast('এলাকার তথ্য সেবাদাতা প্রোফাইলে আপডেট হয়নি: '+providerUpdate.error.message); return; }
   }
-  await loadProfile();toast('প্রোফাইল আপডেট হয়েছে।');go('profile');
+  await loadProfile();
+  toast('প্রোফাইল আপডেট হয়েছে।');
+  go('profile');
 }
+
 function bindForms() {
   const initialProfileForm = document.getElementById('initial-profile-form');
   if (initialProfileForm) initialProfileForm.addEventListener('submit', async event => {
@@ -474,6 +659,15 @@ function bindForms() {
     try { await completeInitialProfile(initialProfileForm); }
     catch (err) { toast('প্রোফাইল তৈরি হয়নি। আবার চেষ্টা করুন।'); }
     finally { if (button && document.body.contains(button)) { button.disabled = false; button.textContent = 'প্রোফাইল তৈরি করুন'; } }
+  });
+  const phoneOtpForm = document.getElementById('phone-otp-form');
+  if (phoneOtpForm) phoneOtpForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = phoneOtpForm.querySelector('button[type="submit"]');
+    if (button) { button.disabled = true; button.textContent = 'যাচাই হচ্ছে…'; }
+    try { await verifyProfilePhone(phoneOtpForm); }
+    catch (err) { toast('নম্বর যাচাই হয়নি। আবার চেষ্টা করুন।'); }
+    finally { if (button && document.body.contains(button)) { button.disabled = false; button.textContent = 'নম্বর যাচাই করুন'; } }
   });
   const continueButton = document.getElementById('continue-session');
   if (continueButton) continueButton.addEventListener('click', () => {
@@ -496,11 +690,11 @@ function bindForms() {
     user = null;
     profile = null;
     afterLoginPath = 'profile';
-    toast('এই ডিভাইস থেকে লগআউট হয়েছে। অন্য অ্যাকাউন্ট দিয়ে Google অথবা ইমেইল ও পাসওয়ার্ড ব্যবহার করুন।');
+    toast('এই ডিভাইস থেকে লগআউট হয়েছে। অন্য অ্যাকাউন্টের ইউজারনেম ও পাসওয়ার্ড ব্যবহার করুন।');
     await render();
   });
   const handlers={
-    'signup-form':signUp,'login-form':signInWithPassword,'provider-form':saveProvider,
+    'signup-form':signUp,'login-form':signInWithUsername,'provider-form':saveProvider,
     'request-form':sendRequest,'account-form':saveAccount
   };
   Object.keys(handlers).forEach(id=>{
@@ -518,7 +712,7 @@ async function render() {
   updateNav();
   const r=route();
   try {
-    if (user && profile && !profile.phone && r.name !== 'complete-profile' && r.name !== 'logout') {
+    if (user && profile && !profile.phone_verified_at && r.name !== 'complete-profile' && r.name !== 'logout') {
       go('complete-profile');
       return;
     }
@@ -550,7 +744,7 @@ async function init() {
       Promise.resolve().then(async()=>{
         if (user) await ensureProfile();
         else profile = null;
-        if (event === 'SIGNED_IN' && user && (!profile || !profile.phone)) go('complete-profile');
+        if (event === 'SIGNED_IN' && user && (!profile || !profile.phone_verified_at)) go('complete-profile');
         await render();
       }).catch(() => toast('অ্যাকাউন্টের প্রোফাইল লোড করা যায়নি। পেজটি রিফ্রেশ করুন।'));
     });
