@@ -526,7 +526,7 @@ async function signInWithUsername(form) {
   const phone = toE164BangladeshPhone(rawIdentifier);
   const identifier = phone || rawIdentifier;
   const password = String(data.get('password') || '');
-  const isEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(identifier);
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
   if ((!phone && !isEmail && !validUsername(identifier)) || !password) {
     toast('সঠিক মোবাইল নম্বর, ইউজারনেম অথবা ইমেইল এবং পাসওয়ার্ড লিখুন।');
     return;
