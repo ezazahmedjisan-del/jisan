@@ -18,6 +18,12 @@ const icons = {'ইলেকট্রিশিয়ান':'💡','প্লাম
 const LOCAL_CATEGORIES = Object.keys(icons);
 const bdLocations = window.BD_LOCATION_DATA || [];
 const statusLabels = {pending:'অপেক্ষমাণ',approved:'অনুমোদিত',rejected:'বাতিল',paused:'বিরত',accepted:'গৃহীত',declined:'প্রত্যাখ্যাত',completed:'সম্পন্ন',cancelled:'বাতিল'};
+const SUGGESTED_PROVIDER_SKILLS = [
+  'গ্রাফিক ডিজাইন','ভিডিও এডিটিং','মোশন গ্রাফিক্স','ওয়েব ডিজাইন','ওয়েব ডেভেলপমেন্ট',
+  'SEO','ডিজিটাল মার্কেটিং','কনটেন্ট রাইটিং','ডেটা এন্ট্রি','ফটোগ্রাফি',
+  'কম্পিউটার সার্ভিসিং','ইলেকট্রিক্যাল কাজ','প্লাম্বিং','এসি সার্ভিসিং','টিউটরিং',
+  'সেলাই ও দর্জি','মোবাইল সার্ভিসিং','কার্পেন্ট্রি','পেইন্টিং','ক্লিনিং'
+];
 
 function esc(value) {
   return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -158,8 +164,13 @@ function emptyState(title, text, icon) {
   return '<div class="empty-state"><div class="icon">' + (icon || '🔎') + '</div><h3>' + esc(title) + '</h3><p>' + esc(text) + '</p></div>';
 }
 function serviceCard(item) {
-  return '<article class="service-card"><div class="service-meta"><span class="tag">' + esc(item.category_name || 'সেবা') + '</span><span class="tag">' + esc(item.district || 'এলাকা উল্লেখ নেই') + '</span></div><h3>' + esc(item.title) + '</h3><p>' + esc(item.description || 'সেবার বিস্তারিত তথ্য দেওয়া হয়নি।') + '</p><div class="muted" style="font-size:12px;margin-bottom:12px">🧰 ' + esc(item.business_name || 'সেবাদাতা') + ' · ' + esc(item.area || 'এলাকা উল্লেখ নেই') + '</div><div class="card-bottom"><span class="price">' + esc(money(item.price_from)) + '</span><a class="btn btn-small" href="#service/' + encodeURIComponent(item.id) + '">বিস্তারিত</a></div></article>';
+  const handle = item.username ? '@' + item.username : 'সেবাদাতা';
+  const phoneBadge = item.phone_verified
+    ? '<span class="verify-pill"><span class="verify-dot">✓</span> মোবাইল যাচাইকৃত</span>'
+    : '';
+  return '<article class="service-card"><div class="service-meta"><span class="tag">' + esc(item.category_name || 'সেবা') + '</span><span class="tag">' + esc(item.district || 'এলাকা উল্লেখ নেই') + '</span></div><h3>' + esc(item.title) + '</h3><p>' + esc(item.description || 'সেবার বিস্তারিত তথ্য দেওয়া হয়নি।') + '</p><div class="service-owner"><b>' + esc(item.business_name || 'সেবাদাতা') + '</b><span>' + esc(handle) + ' · ' + esc(item.area || 'এলাকা উল্লেখ নেই') + '</span>' + phoneBadge + '</div><div class="card-bottom"><span class="price">' + esc(money(item.price_from)) + '</span><a class="btn btn-small" href="#service/' + encodeURIComponent(item.id) + '">বিস্তারিত</a></div></article>';
 }
+
 function homePage() {
   return '<section class="hero"><div class="container hero-grid"><div><div class="eyebrow">LOCAL SERVICE FINDER BD</div><h1>দরকারি সেবা,<br>এবার নিজের এলাকাতেই।</h1><p>ইলেকট্রিশিয়ান, প্লাম্বার, টিউটর থেকে শুরু করে নানা ধরনের স্থানীয় সেবাদাতার সঙ্গে যোগাযোগের সহজ প্ল্যাটফর্ম। কাজ খুঁজুন অথবা নিজের দক্ষতা দিয়ে কাজের সুযোগ তৈরি করুন।</p><div class="hero-actions"><a class="btn" href="#find">সেবা খুঁজে দেখুন <span>→</span></a><a class="btn btn-outline" href="#provider-start">সেবাদাতা হিসেবে যোগ দিন</a>' + (user ? '<a class="btn btn-quiet" href="#profile">Continue as ' + esc(profile && profile.full_name || user.email || 'আপনার অ্যাকাউন্ট') + ' →</a>' : '') + '</div><div class="hero-note">যাচাই ছাড়া কাউকে অনুমোদিত সেবাদাতা হিসেবে দেখানো হবে না।</div></div><div class="visual-panel"><div class="visual-pin">আপনার এলাকার সেবা</div><div class="visual-tile"><div class="icon">🔧</div><b>দক্ষ কারিগর</b><span>মেরামত ও রক্ষণাবেক্ষণ</span></div><div class="visual-tile"><div class="icon">📍</div><b>এলাকাভিত্তিক খোঁজ</b><span>জেলা ও এলাকা নির্বাচন</span></div><div class="visual-tile"><div class="icon">🤝</div><b>সরাসরি অনুরোধ</b><span>কাজের বিবরণ পাঠান</span></div><div class="visual-tile"><div class="icon">🛡️</div><b>যাচাইয়ের ধাপ</b><span>অনুমোদনের পর তালিকাভুক্ত</span></div></div></div></section><div class="trust-strip"><div class="container trust-grid"><div class="trust-item"><strong>01</strong> প্রয়োজন অনুযায়ী সেবা খুঁজুন</div><div class="trust-item"><strong>02</strong> এলাকার তথ্য মিলিয়ে নিন</div><div class="trust-item"><strong>03</strong> কাজের অনুরোধ পাঠান</div></div></div><section class="section"><div class="container"><div class="section-head"><div class="eyebrow">দুইভাবে ব্যবহার করুন</div><h2>আপনি কোন ভূমিকায় আছেন?</h2><p>নিজের প্রয়োজন অনুযায়ী সঠিক পথে শুরু করুন।</p></div><div class="role-grid"><article class="role-card"><div class="icon">🔎</div><h3>আমার সেবা প্রয়োজন</h3><p>এলাকা ও কাজের ধরন বেছে নিয়ে সেবাদাতাদের তালিকা দেখুন। প্রোফাইল যাচাই করে কাজের অনুরোধ পাঠান।</p><a class="text-link" href="#signup-customer">সেবাগ্রহীতা অ্যাকাউন্ট খুলুন →</a></article><article class="role-card"><div class="icon">🧰</div><h3>আমি সেবা দিতে চাই</h3><p>নিজের দক্ষতা, কাজের বিবরণ ও সার্ভিস এলাকা দিয়ে প্রোফাইল তৈরি করুন। যাচাই শেষে সেবার তালিকায় যুক্ত হোন।</p><a class="text-link" href="#signup-provider">সেবাদাতা হিসেবে যোগ দিন →</a></article></div></div></section><section class="section" style="background:#f0f5f0"><div class="container"><div class="section-head"><div class="eyebrow">জনপ্রিয় ক্যাটাগরি</div><h2>কোন সেবাটি খুঁজছেন?</h2><p>ক্যাটাগরি বেছে নিয়ে সেবার তালিকায় যান।</p></div><div class="category-grid">' + Object.keys(icons).slice(0,8).map(name => '<a class="category-card" href="#find?category=' + encodeURIComponent(name) + '"><span class="icon">' + icons[name] + '</span><b>' + esc(name) + '</b></a>').join('') + '</div></div></section><section class="section"><div class="container"><div class="cta-band"><div><h2>আপনার দক্ষতাই হতে পারে পরবর্তী সুযোগ</h2><p>সেবাদাতা হিসেবে নিবন্ধন করে নিজের কাজের পরিচিতি তৈরি করুন।</p></div><a class="btn" href="#provider-start">প্রোফাইল তৈরি করুন →</a></div></div></section>';
 }
@@ -239,41 +250,22 @@ async function servicePage(id) {
     app.innerHTML = '<section class="page"><div class="container">' + emptyState('সেবাটি পাওয়া যায়নি','এই সেবা সরানো হয়েছে অথবা অনুমোদিত নয়।') + '<a class="btn" href="#find">সেবার তালিকায় ফিরুন</a></div></section>';
     return;
   }
-  const s = result.data;
-  app.innerHTML = '<section class="page"><div class="container"><div class="crumb"><a href="#find">সেবার তালিকা</a> / বিস্তারিত</div><div class="panel"><div class="service-meta"><span class="tag">'+esc(s.category_name)+'</span><span class="tag">'+esc(s.district || 'এলাকা উল্লেখ নেই')+'</span></div><div class="profile-top"><div class="profile-avatar">'+esc((s.business_name||'স').slice(0,1))+'</div><div><h1>'+esc(s.business_name)+'</h1><p>'+esc(s.area || '')+' · '+esc(s.experience_years || 0)+' বছরের অভিজ্ঞতা</p></div></div><hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><h2>'+esc(s.title)+'</h2><p>'+esc(s.description)+'</p><p><b>প্রারম্ভিক মূল্য:</b> '+esc(money(s.price_from))+'</p><p><b>সেবাদাতার পরিচিতি:</b> '+esc(s.bio || 'পরিচিতি দেওয়া হয়নি।')+'</p><div class="notice">যোগাযোগের ফোন নম্বর পাবলিক প্রোফাইলে দেখানো হয় না। কাজের অনুরোধ পাঠানোর পর সেবাদাতা আপনার সঙ্গে যোগাযোগের ব্যবস্থা করতে পারবেন।</div><div class="form-actions"><a class="btn" href="#request/'+encodeURIComponent(s.id)+'">কাজের অনুরোধ পাঠান</a><a class="btn btn-outline" href="#find">আরও সেবা দেখুন</a></div></div></div></section>';
-}
-async function requestPage(serviceId) {
-  if (!user) { afterLoginPath='request/'+encodeURIComponent(serviceId); go('login'); toast('অনুরোধ পাঠাতে আগে লগইন করুন।'); return; }
-  if (!db) { app.innerHTML = backendNotice(); return; }
-  const result = await db.from('public_services').select('*').eq('id',serviceId).maybeSingle();
-  if (result.error || !result.data) { app.innerHTML = emptyState('সেবাটি পাওয়া যায়নি','সেবাটির অনুমোদন বা তথ্য যাচাই করুন।'); return; }
-  const s = result.data;
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="crumb"><a href="#service/'+encodeURIComponent(serviceId)+'">সেবার বিস্তারিত</a> / অনুরোধ</div><div class="page-head"><div class="eyebrow">SERVICE REQUEST</div><h1>কাজের অনুরোধ পাঠান</h1><p>'+esc(s.business_name)+' — '+esc(s.title)+'</p></div><form id="request-form" data-provider="'+esc(s.provider_id)+'" data-service="'+esc(s.id)+'" class="form-grid"><div class="field full"><label>কাজের বিস্তারিত</label><textarea name="message" required minlength="10" placeholder="কী কাজ প্রয়োজন, সমস্যাটি কোথায়, বিস্তারিত লিখুন…"></textarea></div>'+formField('আপনার যোগাযোগ নম্বর','contact_phone','tel','01XXXXXXXXX',true,'pattern="^(?:\\+?88)?01[3-9][0-9]{8}$" maxlength="14"') + formField('কাজের সম্ভাব্য তারিখ','preferred_date','date','',false) + districtSelectField('জেলা','district',true,false) + areaSelectField('উপজেলা / থানা','area',true,false) + '<div class="field full"><button class="btn" type="submit">অনুরোধ পাঠান</button></div></form><div class="hint">আপনার নম্বর শুধুমাত্র এই কাজের অনুরোধের সঙ্গে যুক্ত থাকবে। অন্যদের পাবলিক প্রোফাইলে দেখানো হবে না।</div></div></div></section>';
-  attachLocationSelectors(document.getElementById('request-form'), profile && profile.district || '', profile && profile.area || '');
-}
-async function providerStartPage() {
-  if (!user) {
-    app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">BECOME A PROVIDER</div><h1>নিজের সেবার প্রোফাইল তৈরি করুন</h1><p>ইউজারনেম দিয়ে অ্যাকাউন্ট খুলে মোবাইল নম্বর যাচাই করুন, তারপর দক্ষতা ও কাজের তথ্য দিন।</p></div><div class="form-actions"><a class="btn" href="#signup-provider">সেবাদাতা অ্যাকাউন্ট খুলুন</a><a class="btn btn-outline" href="#login">লগইন</a></div></div></div></section>';
-    return;
-  }
-  if (!db) { app.innerHTML = backendNotice(); return; }
-  await loadProfile();
-  if (!profile || profile.user_type !== 'provider') {
-    app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><h1>সেবাদাতা অ্যাকাউন্ট প্রয়োজন</h1><p>প্রোফাইল থেকে সেবাদাতা হিসেবে অ্যাকাউন্টের ধরন বেছে নিয়ে আবার চেষ্টা করুন।</p><a class="btn" href="#profile">প্রোফাইলে যান</a></div></div></section>';
-    return;
-  }
-  if (!profile.phone_verified_at) { go('complete-profile'); return; }
-  const existing = await db.from('provider_profiles').select('*').eq('user_id',user.id).maybeSingle();
-  if (existing.data) {
-    app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><h1>আপনার সেবাদাতা প্রোফাইল</h1><p>'+esc(existing.data.business_name)+'</p>'+notice('প্রোফাইলের অবস্থা: '+(statusLabels[existing.data.approval_status] || existing.data.approval_status),existing.data.approval_status==='approved'?'success':'warn')+'<a class="btn" href="#dashboard">ড্যাশবোর্ডে যান</a></div></div></section>';
-    return;
-  }
-  if (!categories.length) {
-    const cr = await db.from('categories').select('id,name').order('name');
-    if (!cr.error) categories = cr.data || [];
-  }
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">FREELANCER PROFILE</div><h1>আপনার দক্ষতার প্রোফাইল তৈরি করুন</h1><p>দক্ষতা, বাস্তব কাজের অভিজ্ঞতা ও প্রমাণপত্র দিন। ফাইলগুলো ব্যক্তিগতভাবে সংরক্ষিত থাকবে এবং অ্যাডমিন যাচাই করবে।</p></div><form id="provider-form" class="form-grid">' + formField('পেশাগত টাইটেল','professional_title','text','যেমন: গ্রাফিক ডিজাইনার / ইলেকট্রিশিয়ান',true) + formField('প্রতিষ্ঠান / সেবার নাম','business_name','text','যেমন: জিসান ইলেকট্রিক সার্ভিস',true) + formField('অভিজ্ঞতা (বছর)','experience_years','number','যেমন: ৩',true,'min="0" max="60"') + districtSelectField('জেলা','district',true,false) + areaSelectField('উপজেলা / থানা','area',true,false) + '<div class="field full"><label for="provider-skills">আপনার দক্ষতা (কমা দিয়ে আলাদা করুন)</label><textarea id="provider-skills" name="skills" required minlength="2" placeholder="যেমন: Photoshop, Video Editing, Motion Graphics"></textarea><p class="hint">সর্বোচ্চ ২০টি দক্ষতা দিন। এগুলো প্রথমে স্ব-ঘোষিত থাকবে; প্রমাণ যাচাই না হওয়া পর্যন্ত Verified দেখাবে না।</p></div><div class="field full"><label>আপনার পরিচিতি ও দক্ষতার বিবরণ</label><textarea name="bio" required minlength="30" placeholder="কী ধরনের কাজ করেন, কী সমস্যা সমাধান করেন, কী অভিজ্ঞতা আছে…"></textarea></div><div class="field full"><label>আগের কাজের পদ / ভূমিকা (ঐচ্ছিক)</label><input name="experience_role" type="text" maxlength="100" placeholder="যেমন: Junior Video Editor"></div><div class="field full"><label>প্রতিষ্ঠান বা ক্লায়েন্টের নাম (ঐচ্ছিক)</label><input name="experience_organization" type="text" maxlength="120" placeholder="প্রতিষ্ঠান / ক্লায়েন্ট / ব্যক্তিগত প্রকল্প"></div><div class="field full"><label>অভিজ্ঞতার বিবরণ (ঐচ্ছিক)</label><textarea name="experience_description" rows="3" placeholder="কী কাজ করেছেন, দায়িত্ব কী ছিল, কী ফল পেয়েছেন…"></textarea></div><div class="field full"><label>সার্টিফিকেট / কোর্সের প্রমাণপত্র (PDF, JPG, PNG, WebP; প্রতি ফাইল সর্বোচ্চ ১০ MB)</label><input name="certificate_files" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple><p class="hint">শুধু প্রাসঙ্গিক সার্টিফিকেট দিন। NID, পাসপোর্ট, ব্যাংক তথ্য বা অপ্রয়োজনীয় ব্যক্তিগত কাগজ আপলোড করবেন না।</p></div><div class="field full"><label>অভিজ্ঞতার প্রমাণ / কাজের নমুনা (PDF, JPG, PNG, WebP; প্রতি ফাইল সর্বোচ্চ ১০ MB)</label><input name="experience_files" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple></div><div class="field full"><label>প্রমাণপত্র প্রদানকারী প্রতিষ্ঠান (ঐচ্ছিক)</label><input name="document_issuer" type="text" maxlength="140" placeholder="যেমন: প্রশিক্ষণ প্রতিষ্ঠান / কোম্পানি"></div>' + selectField('প্রধান সেবার ধরন','category_id',categoryOptions(),true) + formField('সেবার শিরোনাম','title','text','যেমন: বাসাবাড়ির বৈদ্যুতিক মেরামত',true) + '<div class="field full"><label>সেবার বিস্তারিত</label><textarea name="description" required minlength="20" placeholder="কী কী কাজ করেন এবং কীভাবে সেবা দেন…"></textarea></div>' + formField('শুরুর মূল্য (টাকা)','price_from','number','যেমন: ৫০০',false,'min="0" step="1"') + selectField('মূল্যের ধরন','price_type','<option value="negotiable">আলোচনা সাপেক্ষে</option><option value="starting">শুরু ৳… থেকে</option><option value="fixed">নির্দিষ্ট মূল্য</option>',true) + '<div class="field full"><button class="btn" type="submit">প্রোফাইল জমা দিন</button></div></form></div></div></section>';
-  attachLocationSelectors(document.getElementById('provider-form'));
+  const service = result.data;
+  const [skillResult, experienceResult] = await Promise.all([
+    db.from('provider_skills').select('skill_name,skill_level,years_experience,verification_status').eq('user_id',service.provider_id).order('skill_name'),
+    db.from('provider_experiences').select('role_title,organization,location,start_date,end_date,currently_working,description,verification_status').eq('user_id',service.provider_id).eq('verification_status','verified').order('start_date',{ascending:false})
+  ]);
+  const skills = (skillResult.data || []).map(skill =>
+    '<span class="skill-tag">' + esc(skill.skill_name) + (skill.verification_status === 'verified' ? ' <b class="skill-verified">✓ যাচাইকৃত</b>' : ' <small>স্ব-ঘোষিত</small>') + '</span>'
+  ).join('');
+  const experiences = (experienceResult.data || []).map(item => {
+    const period = (item.start_date ? new Date(item.start_date).toLocaleDateString('bn-BD',{year:'numeric',month:'short'}) : '') +
+      (item.currently_working ? ' — বর্তমানে' : (item.end_date ? ' — ' + new Date(item.end_date).toLocaleDateString('bn-BD',{year:'numeric',month:'short'}) : ''));
+    return '<article class="experience-card"><b>' + esc(item.role_title) + '</b><div class="muted">' + esc(item.organization || 'স্বাধীন কাজ') + (item.location ? ' · ' + esc(item.location) : '') + '</div><small class="muted">' + esc(period) + '</small><p>' + esc(item.description || '') + '</p><span class="verify-pill"><span class="verify-dot">✓</span> অভিজ্ঞতা যাচাইকৃত</span></article>';
+  }).join('');
+  const handle = service.username ? '@' + service.username : 'ইউজারনেম নেই';
+  const phoneBadge = service.phone_verified ? '<span class="verify-pill"><span class="verify-dot">✓</span> মোবাইল নম্বর যাচাইকৃত</span>' : '';
+  app.innerHTML = '<section class="page"><div class="container"><div class="crumb"><a href="#find">সেবার তালিকা</a> / বিস্তারিত</div><div class="panel"><div class="service-meta"><span class="tag">'+esc(service.category_name)+'</span><span class="tag">'+esc(service.district || 'এলাকা উল্লেখ নেই')+'</span></div><div class="profile-top"><div class="profile-avatar">'+esc((service.business_name||'স').slice(0,1))+'</div><div><h1>'+esc(service.business_name)+'</h1><p>'+esc(service.professional_title || 'সেবাদাতা')+' · '+esc(service.area || '')+' · '+esc(service.experience_years || 0)+' বছরের অভিজ্ঞতা</p><p class="muted">'+esc(handle)+'</p>'+phoneBadge+'</div></div><hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><h2>'+esc(service.title)+'</h2><p>'+esc(service.description)+'</p><p><b>প্রারম্ভিক মূল্য:</b> '+esc(money(service.price_from))+'</p><p><b>সেবাদাতার পরিচিতি:</b> '+esc(service.bio || service.profile_overview || 'পরিচিতি দেওয়া হয়নি।')+'</p>'+(skills?'<section class="profile-section"><h3>দক্ষতা</h3><div class="skill-tags">' + skills + '</div></section>':'')+(experiences?'<section class="profile-section"><h3>যাচাইকৃত কাজের অভিজ্ঞতা</h3><div class="experience-list">'+experiences+'</div></section>':'')+'<div class="notice">যোগাযোগের ফোন নম্বর পাবলিক প্রোফাইলে দেখানো হয় না। কাজের অনুরোধ পাঠানোর পর অনুমোদিত প্রক্রিয়ায় যোগাযোগ করা যাবে।</div><div class="form-actions"><a class="btn" href="#request/'+encodeURIComponent(service.id)+'">কাজের অনুরোধ পাঠান</a><a class="btn btn-outline" href="#find">আরও সেবা দেখুন</a></div></div></div></section>';
 }
 
 async function dashboardPage() {
@@ -406,21 +398,91 @@ async function adminPage() {
     app.innerHTML='<section class="page"><div class="container">'+emptyState('অ্যাডমিন প্রবেশাধিকার নেই','এই পেজ শুধু অনুমোদিত অ্যাডমিনদের জন্য।','🔒')+'</div></section>';
     return;
   }
-  const pending = await db.from('provider_profiles').select('user_id,business_name,bio,experience_years,district,area,created_at,profile:profiles(full_name)').eq('approval_status','pending').order('created_at');
-  const pendingServices = await db.from('services').select('id,title,description,provider_id,category:categories(name),provider:provider_profiles(business_name,approval_status)').eq('status','pending').order('created_at');
-  if (pending.error || pendingServices.error) { app.innerHTML=notice('অ্যাডমিন তালিকা লোড করা যায়নি: '+((pending.error||pendingServices.error).message),'error'); return; }
-  const rows=pending.data||[];
-  const serviceRows=pendingServices.data||[];
-  app.innerHTML='<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">ADMIN CONTROL</div><h1>অ্যাডমিন যাচাই কেন্দ্র</h1><p>প্রথমে সেবাদাতার পরিচিতি, তারপর তার প্রতিটি সেবা যাচাই করুন। দুটিই অনুমোদিত না হলে পাবলিক তালিকায় দেখাবে না।</p></div><div class="panel"><div class="results-head"><div><h2>সেবাদাতার প্রোফাইল</h2><p>নতুন সেবাদাতা যাচাই</p></div></div>'+(rows.length?'<div class="table-wrap"><table><thead><tr><th>নাম</th><th>ব্যবসা / কাজ</th><th>এলাকা</th><th>অভিজ্ঞতা</th><th>সিদ্ধান্ত</th></tr></thead><tbody>'+rows.map(p=>'<tr><td>'+esc(p.profile && p.profile.full_name || 'নাম নেই')+'</td><td>'+esc(p.business_name)+'</td><td>'+esc((p.district || '-')+' · '+(p.area || '-'))+'</td><td>'+esc(p.experience_years)+' বছর</td><td><button class="btn btn-small" data-provider="'+esc(p.user_id)+'" data-next="approved">অনুমোদন</button> <button class="btn btn-small btn-outline" data-provider="'+esc(p.user_id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>').join('')+'</tbody></table></div>':emptyState('কোনো অপেক্ষমাণ প্রোফাইল নেই','নতুন সেবাদাতা নিবন্ধন করলে এখানে আসবে।','✅'))+'</div><div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>সেবা যাচাই</h2><p>সেবাদাতার প্রতিটি সেবা আলাদাভাবে অনুমোদন করুন</p></div></div>'+(serviceRows.length?'<div class="table-wrap"><table><thead><tr><th>সেবার নাম</th><th>ক্যাটাগরি</th><th>সেবাদাতা</th><th>প্রোফাইল</th><th>সিদ্ধান্ত</th></tr></thead><tbody>'+serviceRows.map(s=>'<tr><td>'+esc(s.title)+'</td><td>'+esc(s.category && s.category.name || '-')+'</td><td>'+esc(s.provider && s.provider.business_name || '-')+'</td><td><span class="status '+(s.provider && s.provider.approval_status==='approved'?'approved':'pending')+'">'+esc(statusLabels[s.provider && s.provider.approval_status] || 'অপেক্ষমাণ')+'</span></td><td><button class="btn btn-small" data-service="'+esc(s.id)+'" data-next="approved">অনুমোদন</button> <button class="btn btn-small btn-outline" data-service="'+esc(s.id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>').join('')+'</tbody></table></div>':emptyState('কোনো অপেক্ষমাণ সেবা নেই','সেবাদাতারা নতুন সেবা জমা দিলে এখানে আসবে।','✅'))+'</div></div></section>';
+
+  const [providerResult, serviceResult, documentResult, skillResult, experienceResult] = await Promise.all([
+    db.from('provider_profiles').select('user_id,business_name,bio,experience_years,district,area,created_at,profile:profiles(full_name,username,phone_verified_at)').eq('approval_status','pending').order('created_at'),
+    db.from('services').select('id,title,description,provider_id,category:categories(name),provider:provider_profiles(business_name,approval_status)').eq('status','pending').order('created_at'),
+    db.from('provider_documents').select('id,user_id,document_type,title,issuer,description,file_path,verification_status,created_at,profile:profiles(full_name,username)').eq('verification_status','pending').order('created_at'),
+    db.from('provider_skills').select('id,user_id,skill_name,skill_level,years_experience,verification_status,profile:profiles(full_name,username)').in('verification_status',['unverified','pending']).order('created_at'),
+    db.from('provider_experiences').select('id,user_id,role_title,organization,location,start_date,end_date,currently_working,description,verification_status,profile:profiles(full_name,username)').in('verification_status',['unverified','pending']).order('created_at')
+  ]);
+  const firstError = [providerResult,serviceResult,documentResult,skillResult,experienceResult].find(r=>r.error);
+  if (firstError) {
+    app.innerHTML='<section class="page"><div class="container">'+notice('অ্যাডমিন যাচাই তালিকা লোড করা যায়নি: '+firstError.error.message,'error')+'</div></section>';
+    return;
+  }
+
+  const providers = providerResult.data || [];
+  const services = serviceResult.data || [];
+  const documents = documentResult.data || [];
+  const skills = skillResult.data || [];
+  const experiences = experienceResult.data || [];
+
+  const docsWithLinks = await Promise.all(documents.map(async doc => {
+    const signed = await db.storage.from('provider-evidence').createSignedUrl(doc.file_path,600);
+    return {...doc, signedUrl: signed.data && signed.data.signedUrl || ''};
+  }));
+
+  const providerRows = providers.length ? '<div class="table-wrap"><table><thead><tr><th>পরিচয়</th><th>এলাকা</th><th>অভিজ্ঞতা</th><th>ফোন</th><th>সিদ্ধান্ত</th></tr></thead><tbody>' +
+    providers.map(p => {
+      const verified = !!(p.profile && p.profile.phone_verified_at);
+      return '<tr><td><b>' + esc(p.profile && p.profile.full_name || 'নাম নেই') + '</b><br><small>@' + esc(p.profile && p.profile.username || '') + '</small><br>' + esc(p.business_name) + '</td><td>' + esc((p.district || '-')+' · '+(p.area || '-')) + '</td><td>' + esc(p.experience_years) + ' বছর</td><td><span class="status '+(verified?'approved':'pending')+'">'+(verified?'যাচাইকৃত':'যাচাই বাকি')+'</span></td><td><button class="btn btn-small" data-provider="'+esc(p.user_id)+'" data-next="approved" '+(!verified?'disabled title="ফোন যাচাই প্রয়োজন"':'')+'>অনুমোদন</button> <button class="btn btn-small btn-outline" data-provider="'+esc(p.user_id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>';
+    }).join('') + '</tbody></table></div>' : emptyState('কোনো অপেক্ষমাণ প্রোফাইল নেই','নতুন সেবাদাতা নিবন্ধন করলে এখানে আসবে।','✅');
+
+  const serviceRows = services.length ? '<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>ক্যাটাগরি</th><th>সেবাদাতা</th><th>সিদ্ধান্ত</th></tr></thead><tbody>' +
+    services.map(item => '<tr><td>'+esc(item.title)+'</td><td>'+esc(item.category && item.category.name || '-')+'</td><td>'+esc(item.provider && item.provider.business_name || '-')+'</td><td><button class="btn btn-small" data-service="'+esc(item.id)+'" data-next="approved">অনুমোদন</button> <button class="btn btn-small btn-outline" data-service="'+esc(item.id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>').join('') +
+    '</tbody></table></div>' : emptyState('কোনো অপেক্ষমাণ সেবা নেই','সেবাদাতারা নতুন সেবা জমা দিলে এখানে আসবে।','✅');
+
+  const documentCards = docsWithLinks.length ? '<div class="review-grid">' + docsWithLinks.map(doc => {
+    const type = doc.document_type === 'certificate' ? 'সার্টিফিকেট' : doc.document_type === 'experience' ? 'অভিজ্ঞতার প্রমাণ' : 'কাজের নমুনা';
+    return '<article class="review-card"><div class="review-card-head"><span class="tag">'+type+'</span><span class="status pending">যাচাই বাকি</span></div><h3>'+esc(doc.title)+'</h3><p class="muted">'+esc(doc.profile && doc.profile.full_name || 'ব্যবহারকারী')+' · @'+esc(doc.profile && doc.profile.username || '')+'</p>'+(doc.issuer?'<p><b>প্রদানকারী:</b> '+esc(doc.issuer)+'</p>':'')+'<p class="muted">'+new Date(doc.created_at).toLocaleDateString('bn-BD')+'</p>'+(doc.signedUrl?'<a class="btn btn-outline btn-small" href="'+esc(doc.signedUrl)+'" target="_blank" rel="noopener">ফাইল খুলুন</a>':'<p class="notice warn">ফাইল খোলা যাচ্ছে না; Storage permission পরীক্ষা করুন।</p>')+'<input class="review-note-input" type="text" maxlength="300" placeholder="রিভিউ নোট (ঐচ্ছিক)" data-doc-note="'+esc(doc.id)+'"><div class="form-actions"><button class="btn btn-small" data-doc-review="'+esc(doc.id)+'" data-next="verified">যাচাই অনুমোদন</button><button class="btn btn-small btn-outline" data-doc-review="'+esc(doc.id)+'" data-next="rejected">প্রত্যাখ্যান</button></div></article>';
+  }).join('') + '</div>' : emptyState('কোনো অপেক্ষমাণ ফাইল নেই','নতুন সার্টিফিকেট বা অভিজ্ঞতার প্রমাণ জমা হলে এখানে দেখা যাবে।','📎');
+
+  const skillRows = skills.length ? '<div class="table-wrap"><table><thead><tr><th>দক্ষতা</th><th>ব্যবহারকারী</th><th>স্তর</th><th>অভিজ্ঞতা</th><th>সিদ্ধান্ত</th></tr></thead><tbody>' +
+    skills.map(item=>'<tr><td><b>'+esc(item.skill_name)+'</b></td><td>'+esc(item.profile && item.profile.full_name || 'ব্যবহারকারী')+'<br><small>@'+esc(item.profile && item.profile.username || '')+'</small></td><td>'+esc(item.skill_level)+'</td><td>'+esc(item.years_experience)+' বছর</td><td><button class="btn btn-small" data-skill-review="'+esc(item.id)+'" data-next="verified">যাচাই</button> <button class="btn btn-small btn-outline" data-skill-review="'+esc(item.id)+'" data-next="rejected">প্রত্যাখ্যান</button></td></tr>').join('') +
+    '</tbody></table></div>' : emptyState('কোনো অপেক্ষমাণ দক্ষতা নেই','নতুন দক্ষতা জমা হলে এখানে দেখা যাবে।','🧩');
+
+  const experienceRows = experiences.length ? '<div class="review-grid">' + experiences.map(item=>'<article class="review-card"><span class="tag">কাজের অভিজ্ঞতা</span><h3>'+esc(item.role_title)+'</h3><p>'+esc(item.profile && item.profile.full_name || 'ব্যবহারকারী')+' · @'+esc(item.profile && item.profile.username || '')+'</p><p><b>প্রতিষ্ঠান:</b> '+esc(item.organization || 'উল্লেখ নেই')+'</p><p>'+esc(item.description || '')+'</p><div class="form-actions"><button class="btn btn-small" data-exp-review="'+esc(item.id)+'" data-next="verified">যাচাই</button><button class="btn btn-small btn-outline" data-exp-review="'+esc(item.id)+'" data-next="rejected">প্রত্যাখ্যান</button></div></article>').join('') + '</div>' : emptyState('কোনো অপেক্ষমাণ অভিজ্ঞতা নেই','নতুন অভিজ্ঞতা জমা হলে এখানে দেখা যাবে।','🗂️');
+
+  app.innerHTML = '<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">ADMIN CONTROL</div><h1>অ্যাডমিন যাচাই কেন্দ্র</h1><p>ফোন নম্বর, দক্ষতা, কাজের অভিজ্ঞতা ও প্রমাণপত্র দেখে যাচাই করুন। ডকুমেন্টগুলো private; public profile-এ আসল ফাইল দেখানো হয় না।</p></div><div class="panel"><div class="results-head"><div><h2>সেবাদাতা প্রোফাইল</h2><p>ফোন যাচাই ছাড়া কোনো প্রোফাইল অনুমোদন করা যাবে না।</p></div></div>'+providerRows+'</div><div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>সার্টিফিকেট ও প্রমাণপত্র</h2><p>ফাইল private storage থেকে সাময়িক signed link দিয়ে দেখা যাবে।</p></div></div>'+documentCards+'</div><div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>দক্ষতা যাচাই</h2><p>শুধু প্রমাণ দেখে নিশ্চিত হওয়া দক্ষতাকেই Verified করুন।</p></div></div>'+skillRows+'</div><div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>কাজের অভিজ্ঞতা যাচাই</h2></div></div>'+experienceRows+'</div><div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>সেবা যাচাই</h2><p>অনুমোদিত সেবাদাতার সেবাগুলো প্রকাশ করুন।</p></div></div>'+serviceRows+'</div></div></section>';
+
   app.querySelectorAll('[data-provider]').forEach(btn=>btn.addEventListener('click',async()=>{
+    btn.disabled=true;
     const r=await db.rpc('admin_set_provider_status',{p_user_id:btn.dataset.provider,p_status:btn.dataset.next});
-    if(r.error || r.data !== true) toast('আপডেট হয়নি: '+(r.error ? r.error.message : 'অ্যাডমিন অনুমতি যাচাই করুন।')); else {toast('প্রোফাইলের সিদ্ধান্ত সংরক্ষিত হয়েছে।');adminPage();}
+    if(r.error || r.data !== true) { toast('অনুমোদন হয়নি। ফোন যাচাই ও অন্তত একটি দক্ষতা জমা আছে কি না দেখুন।'); btn.disabled=false; }
+    else { toast('প্রোফাইলের সিদ্ধান্ত সংরক্ষিত হয়েছে।'); adminPage(); }
   }));
   app.querySelectorAll('[data-service]').forEach(btn=>btn.addEventListener('click',async()=>{
     const r=await db.rpc('admin_set_service_status',{p_service_id:btn.dataset.service,p_status:btn.dataset.next});
-    if(r.error || r.data !== true) toast('সেবার সিদ্ধান্ত সংরক্ষিত হয়নি: '+(r.error ? r.error.message : 'অ্যাডমিন অনুমতি যাচাই করুন।')); else {toast('সেবার সিদ্ধান্ত সংরক্ষণ হয়েছে।');adminPage();}
+    if(r.error || r.data !== true) toast('সেবার সিদ্ধান্ত সংরক্ষণ হয়নি: '+(r.error ? r.error.message : 'অ্যাডমিন অনুমতি যাচাই করুন।'));
+    else { toast('সেবার সিদ্ধান্ত সংরক্ষিত হয়েছে।'); adminPage(); }
+  }));
+  app.querySelectorAll('[data-doc-review]').forEach(btn=>btn.addEventListener('click',async()=>{
+    btn.disabled=true;
+    const noteField=app.querySelector('[data-doc-note="'+btn.dataset.docReview+'"]');
+    const result=await db.from('provider_documents').update({
+      verification_status:btn.dataset.next,
+      reviewer_note:noteField ? noteField.value.trim() || null : null,
+      reviewed_by:user.id,
+      reviewed_at:new Date().toISOString()
+    }).eq('id',btn.dataset.docReview);
+    if(result.error) { toast('ডকুমেন্টের সিদ্ধান্ত সংরক্ষণ হয়নি: '+result.error.message); btn.disabled=false; }
+    else { toast('ডকুমেন্ট রিভিউ সংরক্ষণ হয়েছে।'); adminPage(); }
+  }));
+  app.querySelectorAll('[data-skill-review]').forEach(btn=>btn.addEventListener('click',async()=>{
+    btn.disabled=true;
+    const result=await db.from('provider_skills').update({verification_status:btn.dataset.next}).eq('id',btn.dataset.skillReview);
+    if(result.error) { toast('দক্ষতার সিদ্ধান্ত সংরক্ষণ হয়নি: '+result.error.message); btn.disabled=false; }
+    else { toast('দক্ষতার যাচাই আপডেট হয়েছে।'); adminPage(); }
+  }));
+  app.querySelectorAll('[data-exp-review]').forEach(btn=>btn.addEventListener('click',async()=>{
+    btn.disabled=true;
+    const result=await db.from('provider_experiences').update({verification_status:btn.dataset.next}).eq('id',btn.dataset.expReview);
+    if(result.error) { toast('অভিজ্ঞতার সিদ্ধান্ত সংরক্ষণ হয়নি: '+result.error.message); btn.disabled=false; }
+    else { toast('অভিজ্ঞতার যাচাই আপডেট হয়েছে।'); adminPage(); }
   }));
 }
+
 async function howPage() {
   app.innerHTML='<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">HOW IT WORKS</div><h1>ব্যবহার করার নিয়ম</h1><p>সেবাগ্রহীতা ও সেবাদাতার জন্য সহজ ধাপ।</p></div><div class="feature-grid"><article class="feature-card"><div class="icon">1️⃣</div><h3>অ্যাকাউন্ট তৈরি</h3><p>সেবাগ্রহীতা বা সেবাদাতা হিসেবে সঠিক তথ্য দিয়ে নিবন্ধন করুন।</p></article><article class="feature-card"><div class="icon">2️⃣</div><h3>সেবা বা প্রোফাইল যোগ</h3><p>সেবাগ্রহীতা এলাকা ও প্রয়োজন বেছে নেবেন। সেবাদাতা কাজের বিবরণ জমা দেবেন।</p></article><article class="feature-card"><div class="icon">3️⃣</div><h3>যাচাই ও অনুরোধ</h3><p>সেবাদাতার তথ্য যাচাইয়ের পর তালিকায় প্রকাশ হবে। তারপর কাজের অনুরোধ পাঠানো যাবে।</p></article></div><div class="notice warn">নিরাপত্তা: কাজ শুরুর আগে মূল্য, সময় ও কাজের পরিধি লিখিতভাবে ঠিক করুন। অপরিচিত কাউকে অগ্রিম টাকা বা সংবেদনশীল পরিচয়পত্রের তথ্য দেবেন না।</div></div></section>';
 }
@@ -540,8 +602,16 @@ async function uploadProviderDocuments(fileList, documentType, issuer) {
 async function saveProvider(form) {
   if (!db || !user) return;
   const d = new FormData(form);
-  const skills = Array.from(new Set(String(d.get('skills') || '').split(/[,،;\\n]/).map(x=>x.trim()).filter(Boolean))).slice(0,20);
-  if (!skills.length) { toast('কমপক্ষে একটি দক্ষতা লিখুন।'); return; }
+  let skills = [];
+  try {
+    const parsedSkills = JSON.parse(String(d.get('skills') || '[]'));
+    skills = Array.isArray(parsedSkills) ? parsedSkills.map(x=>String(x).trim()).filter(Boolean) : [];
+  } catch {
+    skills = String(d.get('skills') || '').split(/[,،;\\r\\n]+/).map(x=>x.trim()).filter(Boolean);
+  }
+  skills = Array.from(new Map(skills.map(x=>[x.toLowerCase(),x])).values());
+  if (!skills.length) { toast('কমপক্ষে একটি দক্ষতা যোগ করুন।'); return; }
+  if (skills.length > 20) { toast('সর্বোচ্চ ২০টি দক্ষতা যোগ করতে পারবেন।'); return; }
   const title = String(d.get('professional_title') || '').trim();
   const locationUpdate = await db.from('profiles').update({
     district:String(d.get('district')).trim(),
@@ -565,7 +635,7 @@ async function saveProvider(form) {
   const skillRows = skills.map(skill=>({
     user_id:user.id,
     skill_name:skill,
-    skill_level:'intermediate',
+    skill_level:String(d.get('skill_level') || 'intermediate'),
     years_experience:Number(d.get('experience_years')) || 0,
     verification_status:'unverified'
   }));
@@ -651,6 +721,47 @@ async function saveAccount(form) {
 }
 
 function bindForms() {
+  const skillPicker = document.getElementById('provider-skill-picker');
+  if (skillPicker) {
+    const valueField = document.getElementById('provider-skills-value');
+    const tagsBox = document.getElementById('selected-skill-tags');
+    const customField = document.getElementById('custom-provider-skill');
+    const readSkills = () => {
+      try { const value=JSON.parse(valueField.value || '[]'); return Array.isArray(value)?value:[]; }
+      catch { return []; }
+    };
+    const paint = list => {
+      valueField.value = JSON.stringify(list);
+      tagsBox.innerHTML = list.length ? list.map(skill=>'<span class="skill-tag">'+esc(skill)+' <button type="button" data-remove-skill="'+esc(skill)+'" aria-label="দক্ষতা সরান">×</button></span>').join('') : '<span class="hint">এখনো কোনো দক্ষতা যোগ করা হয়নি।</span>';
+      skillPicker.querySelectorAll('[data-add-skill]').forEach(button=>{
+        const chosen=list.some(item=>item.toLowerCase()===button.dataset.addSkill.toLowerCase());
+        button.classList.toggle('selected',chosen);
+        button.disabled=chosen;
+      });
+    };
+    const addSkill = raw => {
+      const skill=String(raw || '').trim().replace(/\\s+/g,' ');
+      if (skill.length < 2 || skill.length > 60) { toast('দক্ষতার নাম ২–৬০ অক্ষরের মধ্যে দিন।'); return; }
+      const list=readSkills();
+      if (list.some(item=>item.toLowerCase()===skill.toLowerCase())) { toast('এই দক্ষতাটি আগে যোগ করা হয়েছে।'); return; }
+      if (list.length>=20) { toast('সর্বোচ্চ ২০টি দক্ষতা যোগ করতে পারবেন।'); return; }
+      list.push(skill);
+      paint(list);
+      if (customField) customField.value='';
+    };
+    skillPicker.addEventListener('click',event=>{
+      const add=event.target.closest('[data-add-skill]');
+      const remove=event.target.closest('[data-remove-skill]');
+      if (add) addSkill(add.dataset.addSkill);
+      if (remove) paint(readSkills().filter(item=>item!==remove.dataset.removeSkill));
+      if (event.target.closest('#add-custom-provider-skill')) addSkill(customField.value);
+    });
+    if (customField) customField.addEventListener('keydown',event=>{
+      if (event.key==='Enter') { event.preventDefault(); addSkill(customField.value); }
+    });
+    paint(readSkills());
+  }
+
   const initialProfileForm = document.getElementById('initial-profile-form');
   if (initialProfileForm) initialProfileForm.addEventListener('submit', async event => {
     event.preventDefault();
