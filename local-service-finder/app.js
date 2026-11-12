@@ -87,11 +87,12 @@ async function ensureProfile() {
   await loadProfile();
   if (profile) return;
   const meta = user.user_metadata || {};
-  const fallbackName = user.email ? user.email.split('@')[0] : 'নতুন ব্যবহারকারী';
+  const fallbackName = user.phone || (user.email ? user.email.split('@')[0] : 'নতুন ব্যবহারকারী');
   const suggested = String(meta.username || ('user_' + user.id.slice(0,8))).toLowerCase();
   const inserted = await db.from('profiles').insert({
     id: user.id,
     full_name: String(meta.full_name || meta.name || fallbackName),
+    phone: user.phone || null,
     username: /^[a-z0-9_]{4,20}$/.test(suggested) ? suggested : ('user_' + user.id.slice(0,8)),
     user_type: meta.user_type === 'provider' ? 'provider' : 'customer'
   });
@@ -172,19 +173,19 @@ function serviceCard(item) {
 }
 
 function homePage() {
-  return '<section class="hero"><div class="container hero-grid"><div><div class="eyebrow">LOCAL SERVICE FINDER BD</div><h1>দরকারি সেবা,<br>এবার নিজের এলাকাতেই।</h1><p>ইলেকট্রিশিয়ান, প্লাম্বার, টিউটর থেকে শুরু করে নানা ধরনের স্থানীয় সেবাদাতার সঙ্গে যোগাযোগের সহজ প্ল্যাটফর্ম। কাজ খুঁজুন অথবা নিজের দক্ষতা দিয়ে কাজের সুযোগ তৈরি করুন।</p><div class="hero-actions"><a class="btn" href="#find">সেবা খুঁজে দেখুন <span>→</span></a><a class="btn btn-outline" href="#provider-start">সেবাদাতা হিসেবে যোগ দিন</a>' + (user ? '<a class="btn btn-quiet" href="#profile">Continue as ' + esc(profile && profile.full_name || user.email || 'আপনার অ্যাকাউন্ট') + ' →</a>' : '') + '</div><div class="hero-note">যাচাই ছাড়া কাউকে অনুমোদিত সেবাদাতা হিসেবে দেখানো হবে না।</div></div><div class="visual-panel"><div class="visual-pin">আপনার এলাকার সেবা</div><div class="visual-tile"><div class="icon">🔧</div><b>দক্ষ কারিগর</b><span>মেরামত ও রক্ষণাবেক্ষণ</span></div><div class="visual-tile"><div class="icon">📍</div><b>এলাকাভিত্তিক খোঁজ</b><span>জেলা ও এলাকা নির্বাচন</span></div><div class="visual-tile"><div class="icon">🤝</div><b>সরাসরি অনুরোধ</b><span>কাজের বিবরণ পাঠান</span></div><div class="visual-tile"><div class="icon">🛡️</div><b>যাচাইয়ের ধাপ</b><span>অনুমোদনের পর তালিকাভুক্ত</span></div></div></div></section><div class="trust-strip"><div class="container trust-grid"><div class="trust-item"><strong>01</strong> প্রয়োজন অনুযায়ী সেবা খুঁজুন</div><div class="trust-item"><strong>02</strong> এলাকার তথ্য মিলিয়ে নিন</div><div class="trust-item"><strong>03</strong> কাজের অনুরোধ পাঠান</div></div></div><section class="section"><div class="container"><div class="section-head"><div class="eyebrow">দুইভাবে ব্যবহার করুন</div><h2>আপনি কোন ভূমিকায় আছেন?</h2><p>নিজের প্রয়োজন অনুযায়ী সঠিক পথে শুরু করুন।</p></div><div class="role-grid"><article class="role-card"><div class="icon">🔎</div><h3>আমার সেবা প্রয়োজন</h3><p>এলাকা ও কাজের ধরন বেছে নিয়ে সেবাদাতাদের তালিকা দেখুন। প্রোফাইল যাচাই করে কাজের অনুরোধ পাঠান।</p><a class="text-link" href="#signup-customer">সেবাগ্রহীতা অ্যাকাউন্ট খুলুন →</a></article><article class="role-card"><div class="icon">🧰</div><h3>আমি সেবা দিতে চাই</h3><p>নিজের দক্ষতা, কাজের বিবরণ ও সার্ভিস এলাকা দিয়ে প্রোফাইল তৈরি করুন। যাচাই শেষে সেবার তালিকায় যুক্ত হোন।</p><a class="text-link" href="#signup-provider">সেবাদাতা হিসেবে যোগ দিন →</a></article></div></div></section><section class="section" style="background:#f0f5f0"><div class="container"><div class="section-head"><div class="eyebrow">জনপ্রিয় ক্যাটাগরি</div><h2>কোন সেবাটি খুঁজছেন?</h2><p>ক্যাটাগরি বেছে নিয়ে সেবার তালিকায় যান।</p></div><div class="category-grid">' + Object.keys(icons).slice(0,8).map(name => '<a class="category-card" href="#find?category=' + encodeURIComponent(name) + '"><span class="icon">' + icons[name] + '</span><b>' + esc(name) + '</b></a>').join('') + '</div></div></section><section class="section"><div class="container"><div class="cta-band"><div><h2>আপনার দক্ষতাই হতে পারে পরবর্তী সুযোগ</h2><p>সেবাদাতা হিসেবে নিবন্ধন করে নিজের কাজের পরিচিতি তৈরি করুন।</p></div><a class="btn" href="#provider-start">প্রোফাইল তৈরি করুন →</a></div></div></section>';
+  return '<section class="hero"><div class="container hero-grid"><div><div class="eyebrow">LOCAL SERVICE FINDER BD</div><h1>দক্ষ মানুষের সঙ্গে<br>কাজ শুরু করুন।</h1><p>গ্রাফিক ডিজাইন, ভিডিও এডিটিং, ওয়েব ডেভেলপমেন্টসহ বিভিন্ন দক্ষতার মানুষের সঙ্গে কাজ শুরু করুন। নিজের সার্ভিস প্রকাশ করুন অথবা প্রয়োজনের সঠিক পেশাদার খুঁজে নিন।</p><div class="hero-actions"><a class="btn" href="#find">সেবা খুঁজে দেখুন <span>→</span></a><a class="btn btn-outline" href="#provider-start">সেবাদাতা হিসেবে যোগ দিন</a>' + (user ? '<a class="btn btn-quiet" href="#profile">Continue as ' + esc(profile && profile.full_name || user.phone || user.email || 'আপনার অ্যাকাউন্ট') + ' →</a>' : '') + '</div><div class="hero-note">যাচাই ছাড়া কাউকে অনুমোদিত সেবাদাতা হিসেবে দেখানো হবে না।</div></div><div class="visual-panel"><div class="visual-pin">আপনার এলাকার সেবা</div><div class="visual-tile"><div class="icon">🔧</div><b>দক্ষ কারিগর</b><span>মেরামত ও রক্ষণাবেক্ষণ</span></div><div class="visual-tile"><div class="icon">📍</div><b>এলাকাভিত্তিক খোঁজ</b><span>জেলা ও এলাকা নির্বাচন</span></div><div class="visual-tile"><div class="icon">🤝</div><b>সরাসরি অনুরোধ</b><span>কাজের বিবরণ পাঠান</span></div><div class="visual-tile"><div class="icon">🛡️</div><b>যাচাইয়ের ধাপ</b><span>অনুমোদনের পর তালিকাভুক্ত</span></div></div></div></section><div class="trust-strip"><div class="container trust-grid"><div class="trust-item"><strong>01</strong> প্রয়োজন অনুযায়ী সেবা খুঁজুন</div><div class="trust-item"><strong>02</strong> এলাকার তথ্য মিলিয়ে নিন</div><div class="trust-item"><strong>03</strong> কাজের অনুরোধ পাঠান</div></div></div><section class="section"><div class="container"><div class="section-head"><div class="eyebrow">দুইভাবে ব্যবহার করুন</div><h2>আপনি কোন ভূমিকায় আছেন?</h2><p>নিজের প্রয়োজন অনুযায়ী সঠিক পথে শুরু করুন।</p></div><div class="role-grid"><article class="role-card"><div class="icon">🔎</div><h3>আমার সেবা প্রয়োজন</h3><p>এলাকা ও কাজের ধরন বেছে নিয়ে সেবাদাতাদের তালিকা দেখুন। প্রোফাইল যাচাই করে কাজের অনুরোধ পাঠান।</p><a class="text-link" href="#signup-customer">সেবাগ্রহীতা অ্যাকাউন্ট খুলুন →</a></article><article class="role-card"><div class="icon">🧰</div><h3>আমি সেবা দিতে চাই</h3><p>নিজের দক্ষতা, কাজের বিবরণ ও সার্ভিস এলাকা দিয়ে প্রোফাইল তৈরি করুন। যাচাই শেষে সেবার তালিকায় যুক্ত হোন।</p><a class="text-link" href="#signup-provider">সেবাদাতা হিসেবে যোগ দিন →</a></article></div></div></section><section class="section" style="background:#f0f5f0"><div class="container"><div class="section-head"><div class="eyebrow">জনপ্রিয় ক্যাটাগরি</div><h2>কোন সেবাটি খুঁজছেন?</h2><p>ক্যাটাগরি বেছে নিয়ে সেবার তালিকায় যান।</p></div><div class="category-grid">' + Object.keys(icons).slice(0,8).map(name => '<a class="category-card" href="#find?category=' + encodeURIComponent(name) + '"><span class="icon">' + icons[name] + '</span><b>' + esc(name) + '</b></a>').join('') + '</div></div></section><section class="section"><div class="container"><div class="cta-band"><div><h2>আপনার দক্ষতাই হতে পারে পরবর্তী সুযোগ</h2><p>সেবাদাতা হিসেবে নিবন্ধন করে নিজের কাজের পরিচিতি তৈরি করুন।</p></div><a class="btn" href="#provider-start">প্রোফাইল তৈরি করুন →</a></div></div></section>';
 }
 function authPage(kind) {
   const isProvider = kind === 'signup-provider';
   if (kind === 'login') {
     if (user) {
       const displayName = esc(profile && (profile.username || profile.full_name) || 'আপনার অ্যাকাউন্ট');
-      const emailLine = user.email ? '<p class="hint">' + esc(user.email) + '</p>' : '';
-      return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div></div></div></section>';
+      const accountLine = user.phone ? esc(user.phone) : esc(user.email || '');
+      return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>আপনি ইতিমধ্যে লগইন করা আছেন।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2><p class="hint">' + accountLine + '</p></div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div></div></div></section>';
     }
-    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>ইউজারনেম দিয়ে লগইন</h1><p>আপনার ইউজারনেম ও পাসওয়ার্ড লিখুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-username">ইউজারনেম অথবা ইমেইল</label><input id="login-username" name="username" type="text" required maxlength="254" autocomplete="username" placeholder="আপনার ইউজারনেম বা ইমেইল"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="আপনার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">নতুন account হলে username ব্যবহার করুন। পুরোনো account হলে username অথবা ইমেইল—দুটির যেকোনোটি দিয়ে লগইন করতে পারবেন।</p></div></div></section>';
+    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আপনার অ্যাকাউন্টে প্রবেশ করুন</h1><p>মোবাইল নম্বর অথবা ইউজারনেম ও পাসওয়ার্ড ব্যবহার করুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-username">মোবাইল নম্বর / ইউজারনেম</label><input id="login-username" name="username" type="text" required maxlength="254" autocomplete="username" placeholder="01XXXXXXXXX অথবা username"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="আপনার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">পুরোনো ইমেইলভিত্তিক অ্যাকাউন্ট থাকলে ইমেইল দিয়েও লগইন করা যাবে।</p></div></div></section>';
   }
-  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>নিজস্ব ইউজারনেম ও পাসওয়ার্ড দিয়ে অ্যাকাউন্ট খুলুন।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি অক্ষর, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"><p class="hint">ইমেইলটি অ্যাকাউন্ট নিশ্চিতকরণ ও অ্যাকাউন্ট পুনরুদ্ধারের জন্য; লগইনে ইউজারনেম ব্যবহার করবেন।</p></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
+  return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">ফ্রিল্যান্সার / সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'ফ্রিল্যান্সার অ্যাকাউন্ট খুলুন' : 'সেবাগ্রহীতার অ্যাকাউন্ট খুলুন') + '</h1><p>মোবাইল নম্বর, ইউজারনেম ও পাসওয়ার্ড দিয়েই অ্যাকাউন্ট তৈরি হবে। Gmail লাগবে না।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name" maxlength="100"') + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username"') + formField('বাংলাদেশি মোবাইল নম্বর','phone','tel','01XXXXXXXXX',true,'autocomplete="tel" inputmode="tel" maxlength="14" pattern="(01[3-9][0-9]{8}|\\+?8801[3-9][0-9]{8})"') + '<div class="field full"><label for="signup-password">পাসওয়ার্ড</label><input id="signup-password" name="password" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><div class="notice warn">মোবাইল নম্বরটি সঠিক ফরম্যাটে দিতে হবে। এখনই অ্যাকাউন্ট খুলতে SMS বা Gmail লাগবে না। তবে OTP যাচাই না হওয়া পর্যন্ত নম্বরের মালিকানা যাচাইকৃত হিসেবে দেখানো হবে না।</div></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
 }
 
 async function findPage() {
@@ -196,7 +197,7 @@ async function findPage() {
     if (!cr.error) { categories = cr.data || []; cats = categories; }
   }
   if (!cats.length) cats = LOCAL_CATEGORIES.map((name, i) => ({id:String(i + 1), name}));
-  let html = '<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">SERVICE DIRECTORY</div><h1>আপনার এলাকার সেবাদাতা খুঁজুন</h1><p>ক্যাটাগরি, জেলা বা কাজের নাম দিয়ে খুঁজুন।</p></div><form class="panel search-panel" id="search-form"><div class="search-grid">' +
+  let html = '<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">FREELANCE MARKETPLACE</div><h1>দক্ষ ফ্রিল্যান্সার ও সেবাদাতা খুঁজুন</h1><p>ক্যাটাগরি, জেলা বা কাজের নাম দিয়ে খুঁজুন।</p></div><form class="panel search-panel" id="search-form"><div class="search-grid">' +
     selectField('সেবার ধরন','category_id','<option value="">সব ক্যাটাগরি</option>' + cats.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join(''),false) +
     districtSelectField('জেলা','district',false,true) +
     areaSelectField('উপজেলা / থানা','area',false,true) +
@@ -280,7 +281,7 @@ async function dashboardPage() {
   const requests = isProvider ? (received.data || []) : (sent.data || []);
   const services = myServices.data || [];
   const rows = requests.length ? '<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>এলাকা</th><th>অবস্থা</th><th>তারিখ</th>'+(isProvider?'<th>গ্রাহকের নম্বর</th><th>কাজ</th>':'<th>যোগাযোগ</th>')+'</tr></thead><tbody>'+requests.map(r=>'<tr><td>'+esc(r.service && r.service.title || 'সেবা')+'</td><td>'+esc(r.area || '-')+'</td><td><span class="status '+esc(r.status)+'">'+esc(statusLabels[r.status] || r.status)+'</span></td><td>'+new Date(r.created_at).toLocaleDateString('bn-BD')+'</td>'+(isProvider?'<td>'+(r.status==='accepted'||r.status==='completed'?'<button class="btn btn-small" data-customer-contact="'+esc(r.id)+'">নম্বর দেখুন</button>':'গ্রহণের পর নম্বর পাওয়া যাবে')+'</td><td>'+(r.status==='pending'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="accepted">গ্রহণ</button> <button class="btn btn-small btn-outline" data-request="'+esc(r.id)+'" data-next="declined">না</button>':r.status==='accepted'?'<button class="btn btn-small" data-request="'+esc(r.id)+'" data-next="completed">সম্পন্ন</button>':'—')+'</td>':'<td>'+(r.status==='accepted'?'<button class="btn btn-small" data-contact="'+esc(r.id)+'">নম্বর দেখুন</button>':'অনুমোদনের পর নম্বর পাওয়া যাবে')+'</td>')+'</tr>').join('')+'</tbody></table></div>' : emptyState('এখনো কোনো কাজের অনুরোধ নেই',isProvider?'কেউ কাজের অনুরোধ পাঠালে এখানে দেখতে পাবেন।':'সেবা খুঁজে কাজের অনুরোধ পাঠালে এখানে দেখা যাবে।','📬');
-  app.innerHTML = '<section class="page"><div class="container"><div class="profile-top" style="margin-bottom:22px"><div class="profile-avatar">'+esc((profile && profile.full_name || user.email || 'U').slice(0,1))+'</div><div><div class="eyebrow">MY DASHBOARD</div><h1>' + esc(profile && profile.full_name || user.email) + '</h1><p>'+(isProvider?'সেবাদাতা অ্যাকাউন্ট':'সেবাগ্রহীতা অ্যাকাউন্ট')+' · '+esc(profile && profile.district || 'এলাকা সেট করা হয়নি')+'</p></div><button id="logout-btn" class="btn btn-outline right">লগআউট</button></div><div class="dashboard-grid"><nav class="side-nav"><a class="active" href="#dashboard">ড্যাশবোর্ড</a>'+(isProvider?'<a href="#provider-start">আমার সেবা</a>':'<a href="#find">সেবা খুঁজুন</a>')+'<a href="#account">প্রোফাইল সেটিংস</a></nav><div><div class="stats"><div class="stat"><strong>'+requests.length.toLocaleString('bn-BD')+'</strong><span>'+(isProvider?'পাওয়া অনুরোধ':'পাঠানো অনুরোধ')+'</span></div><div class="stat"><strong>'+services.length.toLocaleString('bn-BD')+'</strong><span>আমার সেবা</span></div><div class="stat"><strong>'+esc(pp.data?statusLabels[pp.data.approval_status] || pp.data.approval_status:'—')+'</strong><span>প্রোফাইল যাচাই</span></div></div><div class="panel"><div class="results-head"><div><h2>'+(isProvider?'আমার কাছে আসা অনুরোধ':'আমার পাঠানো অনুরোধ')+'</h2><p>সর্বশেষ কাজের আপডেট</p></div></div>'+rows+'</div>'+(isProvider?'<div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>আমার সেবাসমূহ</h2><p>অ্যাডমিন যাচাইয়ের অবস্থা</p></div></div>'+(services.length?'<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>অবস্থা</th></tr></thead><tbody>'+services.map(s=>'<tr><td>'+esc(s.title)+'</td><td><span class="status '+esc(s.status)+'">'+esc(statusLabels[s.status] || s.status)+'</span></td></tr>').join('')+'</tbody></table></div>':emptyState('সেবা যোগ করা হয়নি','আপনার সেবা-প্রোফাইল তৈরি করুন।'))+'</div>':'')+'</div></div></div></section>';
+  app.innerHTML = '<section class="page"><div class="container"><div class="profile-top" style="margin-bottom:22px"><div class="profile-avatar">'+esc((profile && profile.full_name || user.email || 'U').slice(0,1))+'</div><div><div class="eyebrow">MY DASHBOARD</div><h1>' + esc(profile && profile.full_name || user.phone || user.email || 'আপনার অ্যাকাউন্ট') + '</h1><p>'+(isProvider?'সেবাদাতা অ্যাকাউন্ট':'সেবাগ্রহীতা অ্যাকাউন্ট')+' · '+esc(profile && profile.district || 'এলাকা সেট করা হয়নি')+'</p></div><button id="logout-btn" class="btn btn-outline right">লগআউট</button></div><div class="dashboard-grid"><nav class="side-nav"><a class="active" href="#dashboard">ড্যাশবোর্ড</a>'+(isProvider?'<a href="#provider-start">আমার সেবা</a>':'<a href="#find">সেবা খুঁজুন</a>')+'<a href="#account">প্রোফাইল সেটিংস</a></nav><div><div class="stats"><div class="stat"><strong>'+requests.length.toLocaleString('bn-BD')+'</strong><span>'+(isProvider?'পাওয়া অনুরোধ':'পাঠানো অনুরোধ')+'</span></div><div class="stat"><strong>'+services.length.toLocaleString('bn-BD')+'</strong><span>আমার সেবা</span></div><div class="stat"><strong>'+esc(pp.data?statusLabels[pp.data.approval_status] || pp.data.approval_status:'—')+'</strong><span>প্রোফাইল যাচাই</span></div></div><div class="panel"><div class="results-head"><div><h2>'+(isProvider?'আমার কাছে আসা অনুরোধ':'আমার পাঠানো অনুরোধ')+'</h2><p>সর্বশেষ কাজের আপডেট</p></div></div>'+rows+'</div>'+(isProvider?'<div class="panel" style="margin-top:16px"><div class="results-head"><div><h2>আমার সেবাসমূহ</h2><p>অ্যাডমিন যাচাইয়ের অবস্থা</p></div></div>'+(services.length?'<div class="table-wrap"><table><thead><tr><th>সেবা</th><th>অবস্থা</th></tr></thead><tbody>'+services.map(s=>'<tr><td>'+esc(s.title)+'</td><td><span class="status '+esc(s.status)+'">'+esc(statusLabels[s.status] || s.status)+'</span></td></tr>').join('')+'</tbody></table></div>':emptyState('সেবা যোগ করা হয়নি','আপনার সেবা-প্রোফাইল তৈরি করুন।'))+'</div>':'')+'</div></div></div></section>';
   document.getElementById('logout-btn').onclick = signOut;
   app.querySelectorAll('[data-request]').forEach(btn => btn.addEventListener('click', async () => {
     const result = await db.from('service_requests').update({status:btn.dataset.next}).eq('id',btn.dataset.request);
@@ -378,11 +379,11 @@ async function accountPage() {
   await loadProfile();
   const displayName = profile && profile.full_name || 'আপনার নাম';
   const roleLabel = profile && profile.user_type === 'provider' ? 'সেবাদাতা অ্যাকাউন্ট' : 'সেবাগ্রহীতা অ্যাকাউন্ট';
-  const emailText = user.email || 'ইমেইল যুক্ত নেই';
+  const emailText = user.phone || user.email || 'মোবাইল নম্বর যুক্ত নেই';
   const phoneStatus = profile && profile.phone_verified_at
-    ? '<span class="status approved">মোবাইল যাচাইকৃত</span>'
-    : '<span class="status pending">মোবাইল যাচাই বাকি</span>';
-  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="profile-top" style="margin-bottom:18px"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><div class="eyebrow">MY PROFILE</div><h1>' + esc(displayName) + '</h1><p>@' + esc(profile && profile.username || '') + '</p><p>' + esc(emailText) + '</p><p class="hint">' + esc(roleLabel) + '</p></div></div><div class="form-actions" style="margin:0 0 22px"><a class="btn btn-outline" href="#dashboard">আমার ড্যাশবোর্ড</a><a class="btn btn-quiet" href="#logout">লগআউট</a></div><div class="notice"><b>মোবাইল নম্বর:</b> ' + esc(profile && profile.phone || 'এখনো যোগ করা হয়নি') + ' ' + phoneStatus + (profile && profile.phone_verified_at ? '' : ' <a class="text-link" href="#complete-profile">যাচাই সম্পন্ন করুন</a>') + '</div><div class="page-head"><div class="eyebrow">PROFILE SETTINGS</div><h2>প্রোফাইল তথ্য</h2><p>আপনার পরিচিতি ও এলাকার তথ্য হালনাগাদ করুন। মোবাইল নম্বর বদলাতে হলে আবার OTP যাচাই করতে হবে।</p></div><form id="account-form" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}"') + formField('পেশাগত পরিচয়','professional_title','text','যেমন: ভিডিও এডিটর / টিউটর',false) + '<div class="field full"><label for="account-overview">নিজের সম্পর্কে</label><textarea id="account-overview" name="overview" rows="4" placeholder="দক্ষতা, কাজের অভিজ্ঞতা ও আগ্রহ…"></textarea></div>' + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form><p class="hint">সার্টিফিকেট/অভিজ্ঞতার প্রমাণপত্র আপনার ব্যক্তিগত ফাইলে থাকবে; অনুমোদন না হওয়া পর্যন্ত Verified দেখাবে না।</p></div></div></section>';
+    ? '<span class="status approved">মোবাইল মালিকানা যাচাইকৃত</span>'
+    : (profile && profile.phone ? '<span class="status pending">OTP দিয়ে মালিকানা যাচাই হয়নি</span>' : '<span class="status pending">মোবাইল নম্বর যোগ করা হয়নি</span>');
+  app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card"><div class="profile-top" style="margin-bottom:18px"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><div class="eyebrow">MY PROFILE</div><h1>' + esc(displayName) + '</h1><p>@' + esc(profile && profile.username || '') + '</p><p>' + esc(emailText) + '</p><p class="hint">' + esc(roleLabel) + '</p></div></div><div class="form-actions" style="margin:0 0 22px"><a class="btn btn-outline" href="#dashboard">আমার ড্যাশবোর্ড</a><a class="btn btn-quiet" href="#logout">লগআউট</a></div><div class="notice"><b>মোবাইল নম্বর:</b> ' + esc(profile && profile.phone || 'এখনো যোগ করা হয়নি') + ' ' + phoneStatus + '' + '</div><div class="page-head"><div class="eyebrow">PROFILE SETTINGS</div><h2>প্রোফাইল তথ্য</h2><p>আপনার পরিচিতি ও এলাকার তথ্য হালনাগাদ করুন। অ্যাকাউন্টে থাকা যোগাযোগের নম্বরটি এখানে দেখানো হয়; OTP যাচাই না হওয়া পর্যন্ত এটি Verified নয়।</p></div><form id="account-form" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true) + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}"') + formField('পেশাগত পরিচয়','professional_title','text','যেমন: ভিডিও এডিটর / টিউটর',false) + '<div class="field full"><label for="account-overview">নিজের সম্পর্কে</label><textarea id="account-overview" name="overview" rows="4" placeholder="দক্ষতা, কাজের অভিজ্ঞতা ও আগ্রহ…"></textarea></div>' + districtSelectField('জেলা','district',false,false) + areaSelectField('উপজেলা / থানা','area',false,false) + '<div class="field full"><button class="btn" type="submit">তথ্য সংরক্ষণ করুন</button></div></form><p class="hint">সার্টিফিকেট/অভিজ্ঞতার প্রমাণপত্র আপনার ব্যক্তিগত ফাইলে থাকবে; অনুমোদন না হওয়া পর্যন্ত Verified দেখাবে না।</p></div></div></section>';
   const form = document.getElementById('account-form');
   attachLocationSelectors(form, profile && profile.district || '', profile && profile.area || '');
   form.elements.full_name.value = profile && profile.full_name || '';
@@ -492,78 +493,67 @@ async function signUp(form) {
   const role = form.dataset.role === 'provider' ? 'provider' : 'customer';
   const username = normalizeUsername(data.get('username'));
   const fullName = String(data.get('full_name') || '').trim();
-  const email = String(data.get('email') || '').trim().toLowerCase();
+  const phone = toE164BangladeshPhone(data.get('phone'));
   const password = String(data.get('password') || '');
+  if (!fullName || fullName.length < 2 || fullName.length > 100) { toast('পূর্ণ নাম ২–১০০ অক্ষরের মধ্যে লিখুন।'); return; }
   if (!validUsername(username)) { toast('ইউজারনেম ৪–২০ অক্ষরের হতে হবে; শুধু ইংরেজি অক্ষর, সংখ্যা ও _ ব্যবহার করুন।'); return; }
-  if (!fullName || !email || password.length < 8) { toast('সব তথ্য সঠিকভাবে পূরণ করুন।'); return; }
+  if (!phone) { toast('সঠিক বাংলাদেশি মোবাইল নম্বর দিন, যেমন 01XXXXXXXXX।'); return; }
+  if (password.length < 8 || password.length > 72) { toast('পাসওয়ার্ড ৮–৭২ অক্ষরের মধ্যে হতে হবে।'); return; }
   if (!data.get('terms')) { toast('ব্যবহারের নিয়মে সম্মতি দিন।'); return; }
-
-  const result = await db.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: fullName, username, user_type: role },
-      emailRedirectTo: window.location.origin
-    }
+  const result = await db.functions.invoke('phone-signup', {
+    body: { full_name: fullName, username, phone, password, user_type: role }
   });
-  if (result.error) {
-    const message = (result.error.message || '').toLowerCase();
-    if (message.includes('profiles_username_lower_unique') || message.includes('duplicate key')) {
-      toast('এই ইউজারনেমটি আগে থেকেই নেওয়া হয়েছে। অন্য ইউজারনেম বেছে নিন।');
-    } else {
-      toast('অ্যাকাউন্ট তৈরি হয়নি: ' + result.error.message);
-    }
+  const session = result.data;
+  if (result.error || !session || !session.access_token || !session.refresh_token) {
+    toast((session && session.error) || 'অ্যাকাউন্ট তৈরি হয়নি। নম্বরটি বা ইউজারনেমটি আগে ব্যবহার করা হয়েছে কি না দেখুন।');
     return;
   }
-  const identities = result.data.user && result.data.user.identities;
-  if (Array.isArray(identities) && identities.length === 0) {
-    app.querySelector('.form-card').insertAdjacentHTML('afterbegin',notice('এই ইমেইলে আগে থেকেই একটি অ্যাকাউন্ট আছে। নতুন অ্যাকাউন্ট তৈরি হয়নি। লগইন করতে ইউজারনেম অথবা ইমেইল ও আগের পাসওয়ার্ড ব্যবহার করুন।','warn'));
+  const saved = await db.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+  if (saved.error || !saved.data.session) {
+    toast('অ্যাকাউন্ট তৈরি হয়েছে, কিন্তু লগইন সেশন চালু হয়নি। একই নম্বর ও পাসওয়ার্ড দিয়ে লগইন করুন।');
     return;
   }
-  if (result.data.session) {
-    user = result.data.user;
-    await ensureProfile();
-    toast('অ্যাকাউন্ট তৈরি হয়েছে। এখন নম্বর যাচাই করুন।');
-    go('complete-profile');
-  } else {
-    app.querySelector('.form-card').insertAdjacentHTML('afterbegin',notice('নিবন্ধনের অনুরোধ গ্রহণ করা হয়েছে। ইমেইল নিশ্চিতকরণ লিংক এলে সেটি খুলুন। আগে থেকেই account থাকলে নতুন account তৈরি হবে না—লগইন করুন।','success'));
-    form.reset();
-  }
+  user = saved.data.user || saved.data.session.user;
+  await ensureProfile();
+  await loadProfile();
+  toast('অ্যাকাউন্ট তৈরি হয়েছে। স্বাগতম!');
+  go(role === 'provider' ? 'provider-start' : 'profile');
 }
 async function signInWithUsername(form) {
   if (!db) return;
   const data = new FormData(form);
-  const identifier = String(data.get('username') || '').trim().toLowerCase();
+  const rawIdentifier = String(data.get('username') || '').trim().toLowerCase();
+  const phone = toE164BangladeshPhone(rawIdentifier);
+  const identifier = phone || rawIdentifier;
   const password = String(data.get('password') || '');
-  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
-  if ((!isEmail && !validUsername(identifier)) || !password) { toast('সঠিক ইউজারনেম অথবা ইমেইল এবং পাসওয়ার্ড লিখুন।'); return; }
-
-  const result = await db.functions.invoke('username-login', {
-    body: { username: identifier, password }
-  });
-  const session = result.data;
-  if (result.error || !session || !session.access_token || !session.refresh_token) {
-    toast((session && session.error) || 'ইউজারনেম/ইমেইল অথবা পাসওয়ার্ড সঠিক নয়। নতুন account হলে আগে ইমেইল নিশ্চিত করুন।');
+  const isEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(identifier);
+  if ((!phone && !isEmail && !validUsername(identifier)) || !password) {
+    toast('সঠিক মোবাইল নম্বর, ইউজারনেম অথবা ইমেইল এবং পাসওয়ার্ড লিখুন।');
     return;
   }
-
-  const saved = await db.auth.setSession({
-    access_token: session.access_token,
-    refresh_token: session.refresh_token
-  });
+  const result = await db.functions.invoke('username-login', { body: { username: identifier, password } });
+  const session = result.data;
+  if (result.error || !session || !session.access_token || !session.refresh_token) {
+    toast((session && session.error) || 'নম্বর/ইউজারনেম অথবা পাসওয়ার্ড সঠিক নয়।');
+    return;
+  }
+  const saved = await db.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
   if (saved.error || !saved.data.session) {
     toast('লগইন সেশন তৈরি হয়নি। আবার চেষ্টা করুন।');
     return;
   }
   user = saved.data.user || saved.data.session.user;
   await ensureProfile();
+  await loadProfile();
   toast('লগইন সফল হয়েছে।');
-  if (!profile || !profile.phone_verified_at) { go('complete-profile'); return; }
   const destination = afterLoginPath || 'profile';
   afterLoginPath = 'profile';
+  if (profile && profile.user_type === 'provider') {
+    const provider = await db.from('provider_profiles').select('user_id').eq('user_id',user.id).maybeSingle();
+    if (!provider.data) { go('provider-start'); return; }
+  }
   go(destination);
 }
-
 async function signOut() {
   if (!db) return;
   const result=await db.auth.signOut({scope:'local'});
@@ -829,10 +819,6 @@ async function render() {
   updateNav();
   const r=route();
   try {
-    if (user && profile && !profile.phone_verified_at && r.name !== 'complete-profile' && r.name !== 'logout') {
-      go('complete-profile');
-      return;
-    }
     if (r.name==='home') app.innerHTML=homePage();
     else if (r.name==='find') await findPage();
     else if (r.name==='login'||r.name==='signup-customer'||r.name==='signup-provider') app.innerHTML=authPage(r.name);
@@ -861,7 +847,6 @@ async function init() {
       Promise.resolve().then(async()=>{
         if (user) await ensureProfile();
         else profile = null;
-        if (event === 'SIGNED_IN' && user && (!profile || !profile.phone_verified_at)) go('complete-profile');
         await render();
       }).catch(() => toast('অ্যাকাউন্টের প্রোফাইল লোড করা যায়নি। পেজটি রিফ্রেশ করুন।'));
     });
