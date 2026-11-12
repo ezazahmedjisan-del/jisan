@@ -40,3 +40,23 @@
 .field input,.field select,.field textarea{transition:border-color .16s,box-shadow .16s}
 .notice{line-height:1.7}
 @media(max-width:650px){.form-card{box-shadow:0 9px 25px rgba(28,57,41,.06)}}
+
+/* Freelance job board */
+.job-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.job-card,.proposal-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:19px;box-shadow:0 5px 18px rgba(28,57,41,.035)}
+.job-card{display:flex;flex-direction:column;gap:10px;transition:transform .18s,box-shadow .18s,border-color .18s}
+.job-card:hover{transform:translateY(-2px);border-color:#b6cfbd;box-shadow:0 14px 30px rgba(28,57,41,.08)}
+.job-card-top,.proposal-head,.job-card-bottom{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.job-card h3{font-size:19px;line-height:1.4;margin:0}
+.job-summary{margin:0;color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.job-skills{display:flex;gap:6px;flex-wrap:wrap}
+.job-meta{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:7px 0}
+.job-budget{font-size:15px;color:var(--green);font-weight:900}
+.job-card-bottom{margin-top:auto;border-top:1px solid var(--line);padding-top:12px}
+.job-detail h1{font-size:30px;line-height:1.35;margin:16px 0}
+.job-description,.proposal-letter{white-space:pre-line;line-height:1.9}
+.job-proposal-list{display:grid;gap:12px}
+.proposal-card{box-shadow:none}
+.proposal-head p{margin:3px 0}
+.job-detail .profile-section{margin-top:20px}
+@media(max-width:700px){.job-grid{grid-template-columns:1fr}.job-detail h1{font-size:24px}.job-card{padding:16px}}
