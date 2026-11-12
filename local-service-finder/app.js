@@ -240,6 +240,162 @@ async function loadServices() {
   count.textContent = rows.length.toLocaleString('bn-BD') + 'টি অনুমোদিত সেবা পাওয়া গেছে';
   results.innerHTML = rows.length ? rows.map(serviceCard).join('') : emptyState('এখনো কোনো অনুমোদিত সেবা নেই','এই ফিল্টারে কোনো যাচাইকৃত সেবাদাতা পাওয়া যায়নি। পরে আবার খুঁজে দেখুন বা অন্য এলাকা বেছে নিন।','🔎');
 }
+
+
+function jobBudget(job) {
+  const min = Number(job.budget_min || 0).toLocaleString('bn-BD');
+  const max = Number(job.budget_max || 0).toLocaleString('bn-BD');
+  return '৳ ' + min + (Number(job.budget_max) > Number(job.budget_min) ? ' – ৳ ' + max : '') + (job.budget_type === 'hourly' ? ' / ঘণ্টা' : ' মোট');
+}
+function jobStatusText(status) {
+  return ({open:'আবেদন চলছে',in_progress:'কাজ চলছে',completed:'সম্পন্ন',cancelled:'বন্ধ',paused:'বিরত'})[status] || status;
+}
+function proposalStatusText(status) {
+  return ({submitted:'জমা হয়েছে',shortlisted:'শর্টলিস্ট',accepted:'গৃহীত',rejected:'নির্বাচিত হয়নি',withdrawn:'প্রত্যাহার'})[status] || status;
+}
+function jobCard(job) {
+  const skills = (Array.isArray(job.skills) ? job.skills : []).slice(0,5).map(s=>'<span class="tag">'+esc(s)+'</span>').join('');
+  const categoryName = job.category && job.category.name || 'সাধারণ কাজ';
+  return '<article class="job-card"><div class="job-card-top"><span class="tag">'+esc(categoryName)+'</span><span class="status '+(job.status==='open'?'approved':'pending')+'">'+esc(jobStatusText(job.status))+'</span></div><h3><a href="#job/'+encodeURIComponent(job.id)+'">'+esc(job.title)+'</a></h3><p class="job-summary">'+esc(job.description)+'</p><div class="job-skills">'+skills+'</div><div class="job-meta"><span>◷ '+esc(job.experience_level==='entry'?'শুরু পর্যায়':job.experience_level==='expert'?'অভিজ্ঞ':'মাঝারি অভিজ্ঞতা')+'</span><span>⌖ '+esc(job.work_mode==='remote'?'রিমোট':job.work_mode==='hybrid'?'হাইব্রিড':'অনসাইট')+'</span><span>'+new Date(job.created_at).toLocaleDateString('bn-BD')+'</span></div><div class="job-card-bottom"><strong class="job-budget">'+esc(jobBudget(job))+'</strong><a class="btn btn-small" href="#job/'+encodeURIComponent(job.id)+'">বিস্তারিত ও প্রস্তাব</a></div></article>';
+}
+async function jobsPage() {
+  app.innerHTML = '<section class="page"><div class="container"><div class="page-head"><div class="eyebrow">FREELANCE JOB BOARD</div><h1>ফ্রিল্যান্স কাজ খুঁজুন</h1><p>ক্লায়েন্টদের প্রকাশিত কাজ দেখুন, বাজেট ও দক্ষতা মিলিয়ে প্রস্তাব পাঠান।</p><div class="form-actions"><a class="btn" href="#post-job">+ নতুন কাজ পোস্ট করুন</a><a class="btn btn-outline" href="#dashboard">আমার ড্যাশবোর্ড</a></div></div><form id="jobs-filter" class="panel search-panel"><div class="search-grid"><div class="field"><label>কাজের নাম বা দক্ষতা</label><input name="q" placeholder="যেমন: ভিডিও এডিটর, ওয়েবসাইট"></div><div class="field"><label>কাজের ধরন</label><select name="budget_type"><option value="">সব বাজেট</option><option value="fixed">Fixed Price</option><option value="hourly">Hourly</option></select></div><button class="btn" type="submit">খুঁজুন</button></div></form><div class="results-head"><div><h2>সাম্প্রতিক কাজ</h2><p id="jobs-count">কাজ লোড হচ্ছে…</p></div></div><div id="job-results" class="job-grid"><div class="loading-screen"><span class="spinner"></span><p>কাজের তালিকা লোড হচ্ছে…</p></div></div></div></section>';
+  const results = await db.from('jobs').select('id,title,description,budget_min,budget_max,budget_type,experience_level,skills,work_mode,status,created_at,category:categories(name)').eq('status','open').order('created_at',{ascending:false}).limit(80);
+  const box = document.getElementById('job-results');
+  const count = document.getElementById('jobs-count');
+  if (results.error) {
+    box.innerHTML = emptyState('কাজের তালিকা লোড হয়নি','ডেটাবেস অনুমতি বা সংযোগ যাচাই করুন।','⚠️');
+    count.textContent = 'লোড করতে সমস্যা হয়েছে';
+    return;
+  }
+  const jobs = results.data || [];
+  const filter = document.getElementById('jobs-filter');
+  const draw = () => {
+    const q = String(filter.elements.q.value || '').trim().toLowerCase();
+    const type = filter.elements.budget_type.value;
+    const selected = jobs.filter(job => {
+      const haystack = [job.title,job.description,...(job.skills||[])].join(' ').toLowerCase();
+      return (!q || haystack.includes(q)) && (!type || job.budget_type===type);
+    });
+    count.textContent = selected.length.toLocaleString('bn-BD')+'টি কাজ পাওয়া গেছে';
+    box.innerHTML = selected.length ? selected.map(jobCard).join('') : emptyState('এখনো কোনো কাজ নেই','নতুন কাজ পোস্ট হলে এখানে দেখা যাবে।','🧭');
+  };
+  filter.addEventListener('submit',e=>{e.preventDefault();draw();});
+  filter.addEventListener('input',draw);
+  draw();
+}
+async function postJobPage() {
+  if (!user) { afterLoginPath='post-job'; go('login'); return; }
+  await loadProfile();
+  if (!profile || profile.user_type !== 'customer') {
+    app.innerHTML = '<section class="page"><div class="container"><div class="panel form-card">'+notice('কাজ পোস্ট করতে সেবাগ্রহীতা / ক্লায়েন্ট অ্যাকাউন্ট প্রয়োজন। ফ্রিল্যান্সার অ্যাকাউন্ট দিয়ে কাজের প্রস্তাব পাঠাতে পারবেন।','warn')+'<a class="btn" href="#jobs">কাজের তালিকায় ফিরুন</a></div></div></section>';
+    return;
+  }
+  if (!categories.length) {
+    const cats=await db.from('categories').select('id,name,icon').order('name');
+    if (!cats.error) categories=cats.data||[];
+  }
+  app.innerHTML = '<section class="page"><div class="container"><div class="crumb"><a href="#jobs">কাজের তালিকা</a> / নতুন কাজ</div><div class="panel form-card"><div class="page-head"><div class="eyebrow">POST A PROJECT</div><h1>নতুন কাজ পোস্ট করুন</h1><p>কাজের লক্ষ্য, প্রয়োজনীয় দক্ষতা, বাজেট ও সময়সীমা পরিষ্কারভাবে লিখুন।</p></div><form id="job-form" class="form-grid">'+formField('কাজের শিরোনাম','title','text','যেমন: ৩০ সেকেন্ডের মোশন গ্রাফিক্স ভিডিও',true,'minlength="8" maxlength="140"')+'<div class="field full"><label>কাজের বিস্তারিত বিবরণ</label><textarea name="description" required minlength="40" maxlength="8000" placeholder="কাজের লক্ষ্য, কী কী ডেলিভার করতে হবে, প্রয়োজনীয় ফাইল/রেফারেন্স, সময়সীমা ইত্যাদি লিখুন।"></textarea><span class="hint">কমপক্ষে ৪০ অক্ষর। ব্যক্তিগত ফোন নম্বর বা পাসওয়ার্ড এখানে লিখবেন না।</span></div>'+selectField('ক্যাটাগরি','category_id',categoryOptions(''),false)+selectField('বাজেটের ধরন','budget_type','<option value="fixed">Fixed Price — পুরো কাজের জন্য</option><option value="hourly">Hourly — ঘণ্টাপ্রতি</option>',true)+formField('সর্বনিম্ন বাজেট (৳)','budget_min','number','যেমন ২০০০',true,'min="0" step="1"')+formField('সর্বোচ্চ বাজেট (৳)','budget_max','number','যেমন ৫০০০',true,'min="0" step="1"')+selectField('অভিজ্ঞতার স্তর','experience_level','<option value="entry">শুরু পর্যায়</option><option value="intermediate" selected>মাঝারি অভিজ্ঞতা</option><option value="expert">অভিজ্ঞ</option>',true)+selectField('কাজের পদ্ধতি','work_mode','<option value="remote">রিমোট / অনলাইন</option><option value="onsite">সশরীরে</option><option value="hybrid">দুইভাবেই</option>',true)+formField('প্রয়োজনীয় দক্ষতা','skills','text','যেমন: Premiere Pro, Motion Graphics, After Effects',false,'maxlength="400"')+'<div class="field full"><div class="notice">কাজ প্রকাশের আগে বাজেট ও কাজের শর্ত যাচাই করুন। কাউকে OTP, পাসওয়ার্ড বা ব্যক্তিগত পরিচয়পত্র পাঠাবেন না।</div></div><div class="field full"><button class="btn" type="submit">কাজ প্রকাশ করুন</button></div></form></div></div></section>';
+}
+async function createJob(form) {
+  if (!user) { go('login'); return; }
+  await loadProfile();
+  if (!profile || profile.user_type!=='customer') { toast('কাজ পোস্ট করতে ক্লায়েন্ট অ্যাকাউন্ট প্রয়োজন।'); return; }
+  const d=new FormData(form);
+  const title=String(d.get('title')||'').trim();
+  const description=String(d.get('description')||'').trim();
+  const min=Number(d.get('budget_min'));
+  const max=Number(d.get('budget_max'));
+  const skills=Array.from(new Map(String(d.get('skills')||'').split(/[,،;|]+/).map(x=>x.trim()).filter(x=>x.length>=2&&x.length<=60).map(x=>[x.toLowerCase(),x])).values()).slice(0,15);
+  if(title.length<8||title.length>140||description.length<40||description.length>8000){toast('শিরোনাম ও কাজের বিবরণ যথেষ্ট বিস্তারিত লিখুন।');return;}
+  if(!Number.isFinite(min)||!Number.isFinite(max)||min<0||max<min){toast('সর্বনিম্ন ও সর্বোচ্চ বাজেট ঠিকভাবে দিন।');return;}
+  const payload={
+    client_id:user.id,title,description,
+    category_id:d.get('category_id')?Number(d.get('category_id')):null,
+    budget_min:min,budget_max:max,budget_type:d.get('budget_type')==='hourly'?'hourly':'fixed',
+    experience_level:String(d.get('experience_level')||'intermediate'),
+    skills,work_mode:String(d.get('work_mode')||'remote'),
+    district:String(d.get('district')||'').trim()||null,status:'open'
+  };
+  const saved=await db.from('jobs').insert(payload).select('id').single();
+  if(saved.error){toast('কাজ প্রকাশ হয়নি: '+saved.error.message);return;}
+  toast('কাজ প্রকাশ হয়েছে। এখন ফ্রিল্যান্সাররা প্রস্তাব পাঠাতে পারবেন।');
+  go('job/'+encodeURIComponent(saved.data.id));
+}
+async function jobDetailPage(id) {
+  if (!db) { app.innerHTML='<section class="page"><div class="container">'+backendNotice()+'</div></section>';return; }
+  const result=await db.from('jobs').select('*,category:categories(name)').eq('id',id).maybeSingle();
+  if(result.error||!result.data){app.innerHTML='<section class="page"><div class="container">'+emptyState('কাজটি পাওয়া যায়নি','কাজটি বন্ধ করা হয়েছে অথবা লিংকটি সঠিক নয়।')+'<a class="btn" href="#jobs">কাজ খুঁজুন</a></div></section>';return;}
+  const job=result.data;
+  const owner=!!user&&user.id===job.client_id;
+  const skills=(job.skills||[]).map(s=>'<span class="skill-tag">'+esc(s)+'</span>').join('');
+  let proposalArea='';
+  if(owner){
+    const proposals=await db.from('job_proposals').select('id,freelancer_id,cover_letter,bid_amount,estimated_days,status,created_at').eq('job_id',job.id).order('created_at',{ascending:false});
+    if(proposals.error){proposalArea=notice('প্রস্তাব লোড করা যায়নি: '+proposals.error.message,'error');}
+    else {
+      const rows=proposals.data||[];
+      let profiles={};
+      if(rows.length){
+        const ids=rows.map(x=>x.freelancer_id);
+        const publicProfiles=await db.from('public_freelancer_profiles').select('user_id,full_name,username,professional_title,business_name').in('user_id',ids);
+        if(!publicProfiles.error) profiles=Object.fromEntries((publicProfiles.data||[]).map(p=>[p.user_id,p]));
+      }
+      proposalArea='<section class="profile-section"><div class="results-head"><div><h2>ফ্রিল্যান্সারদের প্রস্তাব</h2><p>'+rows.length.toLocaleString('bn-BD')+'টি প্রস্তাব</p></div></div>'+(rows.length?'<div class="job-proposal-list">'+rows.map(p=>{
+        const person=profiles[p.freelancer_id]||{};
+        const label=person.full_name||person.business_name||('ফ্রিল্যান্সার '+p.freelancer_id.slice(0,8));
+        return '<article class="proposal-card"><div class="proposal-head"><div><b>'+esc(label)+'</b><p class="hint">'+esc(person.username?'@'+person.username:'')+' '+esc(person.professional_title||'')+'</p></div><span class="status '+(p.status==='accepted'?'approved':p.status==='rejected'?'rejected':'pending')+'">'+esc(proposalStatusText(p.status))+'</span></div><div class="job-meta"><b>'+esc(money(p.bid_amount))+'</b><span>'+p.estimated_days.toLocaleString('bn-BD')+' দিনের মধ্যে</span><span>'+new Date(p.created_at).toLocaleDateString('bn-BD')+'</span></div><p class="proposal-letter">'+esc(p.cover_letter)+'</p>'+(job.status==='open'&&['submitted','shortlisted'].includes(p.status)?'<div class="form-actions"><button class="btn btn-small btn-outline" data-proposal-status="shortlisted" data-proposal-id="'+esc(p.id)+'">শর্টলিস্ট</button><button class="btn btn-small" data-proposal-status="accepted" data-proposal-id="'+esc(p.id)+'">প্রস্তাব গ্রহণ</button><button class="btn btn-small btn-quiet" data-proposal-status="rejected" data-proposal-id="'+esc(p.id)+'">না</button></div>':'')+'</article>';
+      }).join('')+'</div>':emptyState('এখনো প্রস্তাব আসেনি','ফ্রিল্যান্সাররা কাজটি দেখার পর প্রস্তাব পাঠাতে পারবেন।','📨'))+'</section>';
+    }
+  } else if(user) {
+    await loadProfile();
+    if(profile&&profile.user_type==='provider'&&job.status==='open'){
+      const pp=await db.from('provider_profiles').select('approval_status').eq('user_id',user.id).maybeSingle();
+      const existing=await db.from('job_proposals').select('id,status').eq('job_id',job.id).eq('freelancer_id',user.id).maybeSingle();
+      if(existing.data){
+        proposalArea=notice('আপনার প্রস্তাবের অবস্থা: '+proposalStatusText(existing.data.status),existing.data.status==='accepted'?'success':'warn');
+        if(['submitted','shortlisted'].includes(existing.data.status)) proposalArea+='<button class="btn btn-outline" data-proposal-status="withdrawn" data-proposal-id="'+esc(existing.data.id)+'">প্রস্তাব প্রত্যাহার করুন</button>';
+      } else if(pp.data&&pp.data.approval_status==='approved'){
+        proposalArea='<section class="profile-section"><h2>এই কাজে প্রস্তাব পাঠান</h2><p class="muted">আপনার বাজেট ও কাজ শেষ করার সম্ভাব্য সময় লিখুন।</p><form id="job-proposal-form" data-job="'+esc(job.id)+'" class="form-grid">'+formField('আপনার প্রস্তাবিত মূল্য (৳)','bid_amount','number','যেমন ৩৫০০',true,'min="1" step="1"')+formField('সম্ভাব্য সময় (দিন)','estimated_days','number','যেমন ৫',true,'min="1" max="3650"')+'<div class="field full"><label>কাজটি কীভাবে করবেন?</label><textarea name="cover_letter" required minlength="80" maxlength="4000" placeholder="আপনার প্রাসঙ্গিক দক্ষতা, কাজের পরিকল্পনা, অভিজ্ঞতা ও ডেলিভারি সম্পর্কে লিখুন।"></textarea></div><div class="field full"><button class="btn" type="submit">প্রস্তাব জমা দিন</button></div></form></section>';
+      } else {
+        proposalArea=notice('প্রস্তাব পাঠাতে আপনার সেবাদাতা প্রোফাইল অ্যাডমিন কর্তৃক অনুমোদিত হতে হবে।','warn');
+      }
+    } else if(profile&&profile.user_type!=='provider') {
+      proposalArea=notice('প্রস্তাব পাঠাতে ফ্রিল্যান্সার অ্যাকাউন্ট প্রয়োজন।','warn');
+    }
+  } else {
+    proposalArea='<section class="profile-section">'+notice('প্রস্তাব পাঠাতে লগইন করুন। ফ্রিল্যান্সার অ্যাকাউন্ট ও অনুমোদিত প্রোফাইল লাগবে।','warn')+'<a class="btn" href="#login">লগইন করুন</a></section>';
+  }
+  app.innerHTML='<section class="page"><div class="container"><div class="crumb"><a href="#jobs">কাজের তালিকা</a> / কাজের বিবরণ</div><article class="panel job-detail"><div class="job-card-top"><span class="tag">'+esc(job.category&&job.category.name||'সাধারণ কাজ')+'</span><span class="status '+(job.status==='open'?'approved':'pending')+'">'+esc(jobStatusText(job.status))+'</span></div><h1>'+esc(job.title)+'</h1><div class="job-meta"><b class="job-budget">'+esc(jobBudget(job))+'</b><span>'+esc(job.experience_level==='entry'?'শুরু পর্যায়':job.experience_level==='expert'?'অভিজ্ঞ':'মাঝারি অভিজ্ঞতা')+'</span><span>'+esc(job.work_mode==='remote'?'রিমোট':job.work_mode==='hybrid'?'হাইব্রিড':'অনসাইট')+'</span><span>'+new Date(job.created_at).toLocaleDateString('bn-BD')+'</span></div><section class="profile-section"><h2>কাজের বিবরণ</h2><p class="job-description">'+esc(job.description)+'</p></section>'+(skills?'<section class="profile-section"><h3>প্রয়োজনীয় দক্ষতা</h3><div class="skill-tags">'+skills+'</div></section>':'')+(owner&&job.status==='open'?'<div class="form-actions"><button class="btn btn-outline" data-job-status="paused" data-job-id="'+esc(job.id)+'">কাজ সাময়িক বন্ধ করুন</button><button class="btn btn-quiet" data-job-status="cancelled" data-job-id="'+esc(job.id)+'">কাজ বন্ধ করুন</button></div>':'')+proposalArea+'</article></div></section>';
+  app.querySelectorAll('[data-proposal-status]').forEach(button=>button.addEventListener('click',async()=>{
+    button.disabled=true;
+    const update=await db.from('job_proposals').update({status:button.dataset.proposalStatus}).eq('id',button.dataset.proposalId);
+    if(update.error){toast('প্রস্তাবের অবস্থা বদলানো যায়নি: '+update.error.message);button.disabled=false;}
+    else {toast('প্রস্তাব আপডেট হয়েছে।');jobDetailPage(id);}
+  }));
+  app.querySelectorAll('[data-job-status]').forEach(button=>button.addEventListener('click',async()=>{
+    button.disabled=true;
+    const update=await db.from('jobs').update({status:button.dataset.jobStatus}).eq('id',button.dataset.jobId);
+    if(update.error){toast('কাজের অবস্থা বদলানো যায়নি: '+update.error.message);button.disabled=false;}
+    else {toast('কাজের অবস্থা আপডেট হয়েছে।');jobDetailPage(id);}
+  }));
+}
+async function submitJobProposal(form) {
+  if(!user){go('login');return;}
+  await loadProfile();
+  if(!profile||profile.user_type!=='provider'){toast('ফ্রিল্যান্সার অ্যাকাউন্ট প্রয়োজন।');return;}
+  const d=new FormData(form);
+  const bid=Number(d.get('bid_amount')),days=Number(d.get('estimated_days'));
+  const letter=String(d.get('cover_letter')||'').trim();
+  if(!Number.isFinite(bid)||bid<=0||!Number.isInteger(days)||days<1||days>3650||letter.length<80||letter.length>4000){toast('প্রস্তাবের মূল্য, সময় ও বিস্তারিত ঠিকভাবে লিখুন।');return;}
+  const result=await db.from('job_proposals').insert({
+    job_id:form.dataset.job,freelancer_id:user.id,cover_letter:letter,bid_amount:bid,estimated_days:days
+  });
+  if(result.error){toast(result.error.code==='23505'?'এই কাজে আপনি আগেই প্রস্তাব পাঠিয়েছেন।':'প্রস্তাব জমা হয়নি: '+result.error.message);return;}
+  toast('আপনার প্রস্তাব ক্লায়েন্টের কাছে পাঠানো হয়েছে।');
+  go('job/'+encodeURIComponent(form.dataset.job));
+}
+
 async function servicePage(id) {
   app.innerHTML = '<section class="page"><div class="container"><div class="loading-screen"><span class="spinner"></span><p>সেবার তথ্য লোড হচ্ছে…</p></div></div></section>';
   if (!db) {
@@ -802,6 +958,7 @@ function bindForms() {
   });
   const handlers={
     'signup-form':signUp,'login-form':signInWithUsername,'provider-form':saveProvider,
+    'job-form':createJob,'job-proposal-form':submitJobProposal,
     'request-form':sendRequest,'account-form':saveAccount
   };
   Object.keys(handlers).forEach(id=>{
@@ -821,6 +978,9 @@ async function render() {
   try {
     if (r.name==='home') app.innerHTML=homePage();
     else if (r.name==='find') await findPage();
+    else if (r.name==='jobs') await jobsPage();
+    else if (r.name==='post-job') await postJobPage();
+    else if (r.name==='job') await jobDetailPage(decodeURIComponent(r.id));
     else if (r.name==='login'||r.name==='signup-customer'||r.name==='signup-provider') app.innerHTML=authPage(r.name);
     else if (r.name==='provider-start') await providerStartPage();
     else if (r.name==='service') await servicePage(decodeURIComponent(r.id));
