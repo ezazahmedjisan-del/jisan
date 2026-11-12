@@ -182,7 +182,7 @@ function authPage(kind) {
       const emailLine = user.email ? '<p class="hint">' + esc(user.email) + '</p>' : '';
       return '<section class="page"><div class="container"><div class="panel form-card"><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>আবার স্বাগতম!</h1><p>এই ব্রাউজারে আপনার অ্যাকাউন্ট আগে থেকেই লগইন করা আছে।</p></div><div class="profile-top" style="margin:22px 0"><div class="profile-avatar">' + esc(displayName.slice(0,1).toUpperCase()) + '</div><div><h2 style="margin:0;font-size:20px">' + displayName + '</h2>' + emailLine + '</div></div><div class="form-actions"><button class="btn" type="button" id="continue-session">প্রোফাইলে যান</button><button class="btn btn-outline" type="button" id="switch-account">অন্য অ্যাকাউন্ট ব্যবহার করুন</button></div></div></div></section>';
     }
-    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>ইউজারনেম দিয়ে লগইন</h1><p>আপনার ইউজারনেম ও পাসওয়ার্ড লিখুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-username">ইউজারনেম</label><input id="login-username" name="username" type="text" required minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username" placeholder="যেমন: jisan_01"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="আপনার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">অ্যাকাউন্ট খোলার সময় ইমেইল দিতে হবে; লগইনে ইউজারনেমই ব্যবহার করবেন।</p></div></div></section>';
+    return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login" class="active">লগইন</a><a href="#signup-customer">নিবন্ধন</a></div><div class="page-head"><div class="eyebrow">WELCOME BACK</div><h1>ইউজারনেম দিয়ে লগইন</h1><p>আপনার ইউজারনেম ও পাসওয়ার্ড লিখুন।</p></div>' + backendNotice() + '<form id="login-form" class="form-grid"><div class="field full"><label for="login-username">ইউজারনেম অথবা ইমেইল</label><input id="login-username" name="username" type="text" required maxlength="254" autocomplete="username" placeholder="আপনার ইউজারনেম বা ইমেইল"></div><div class="field full"><label for="login-password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="আপনার পাসওয়ার্ড"></div><div class="field full"><button class="btn btn-outline" type="button" id="show-login-password">পাসওয়ার্ড দেখুন</button></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>লগইন করুন</button></div></form><p class="hint">অ্যাকাউন্ট নেই? <a class="text-link" href="#signup-customer">নতুন অ্যাকাউন্ট খুলুন</a></p><p class="hint">নতুন account হলে username ব্যবহার করুন। পুরোনো account হলে username অথবা ইমেইল—দুটির যেকোনোটি দিয়ে লগইন করতে পারবেন।</p></div></div></section>';
   }
   return '<section class="page"><div class="container"><div class="panel form-card"><div class="auth-tabs"><a href="#login">লগইন</a><a href="#signup-customer" class="' + (!isProvider ? 'active' : '') + '">সেবাগ্রহীতা</a><a href="#signup-provider" class="' + (isProvider ? 'active' : '') + '">সেবাদাতা</a></div><div class="page-head"><div class="eyebrow">CREATE ACCOUNT</div><h1>' + (isProvider ? 'সেবাদাতা অ্যাকাউন্ট তৈরি করুন' : 'সেবাগ্রহীতা অ্যাকাউন্ট তৈরি করুন') + '</h1><p>নিজস্ব ইউজারনেম ও পাসওয়ার্ড দিয়ে অ্যাকাউন্ট খুলুন।</p></div>' + backendNotice() + '<form id="signup-form" data-role="' + (isProvider ? 'provider' : 'customer') + '" class="form-grid">' + formField('পূর্ণ নাম','full_name','text','আপনার নাম',true,'autocomplete="name"') + formField('ইউজারনেম','username','text','৪–২০ অক্ষর; ইংরেজি অক্ষর, সংখ্যা বা _',true,'minlength="4" maxlength="20" pattern="[A-Za-z0-9_]{4,20}" autocomplete="username"') + '<div class="field full"><label>ইমেইল ঠিকানা</label><input name="email" type="email" required autocomplete="email" placeholder="name@example.com"><p class="hint">ইমেইলটি অ্যাকাউন্ট নিশ্চিতকরণ ও অ্যাকাউন্ট পুনরুদ্ধারের জন্য; লগইনে ইউজারনেম ব্যবহার করবেন।</p></div><div class="field full"><label>পাসওয়ার্ড</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"></div><div class="field full"><label class="hint"><input type="checkbox" name="terms" required> আমি ব্যবহারের নিয়ম ও গোপনীয়তা নীতি মেনে নিচ্ছি।</label></div><div class="field full"><button class="btn" type="submit" ' + (!db ? 'disabled' : '') + '>অ্যাকাউন্ট তৈরি করুন</button></div></form><p class="hint">আগে থেকেই অ্যাকাউন্ট আছে? <a class="text-link" href="#login">লগইন করুন</a></p></div></div></section>';
 }
@@ -515,29 +515,35 @@ async function signUp(form) {
     }
     return;
   }
+  const identities = result.data.user && result.data.user.identities;
+  if (Array.isArray(identities) && identities.length === 0) {
+    app.querySelector('.form-card').insertAdjacentHTML('afterbegin',notice('এই ইমেইলে আগে থেকেই একটি অ্যাকাউন্ট আছে। নতুন অ্যাকাউন্ট তৈরি হয়নি। লগইন করতে ইউজারনেম অথবা ইমেইল ও আগের পাসওয়ার্ড ব্যবহার করুন।','warn'));
+    return;
+  }
   if (result.data.session) {
     user = result.data.user;
     await ensureProfile();
     toast('অ্যাকাউন্ট তৈরি হয়েছে। এখন নম্বর যাচাই করুন।');
     go('complete-profile');
   } else {
-    app.querySelector('.form-card').insertAdjacentHTML('afterbegin',notice('নিবন্ধনের নিশ্চিতকরণ লিংক আপনার ইমেইলে পাঠানো হয়েছে। ইমেইল নিশ্চিত করে ইউজারনেম ও পাসওয়ার্ড দিয়ে লগইন করুন।','success'));
+    app.querySelector('.form-card').insertAdjacentHTML('afterbegin',notice('নিবন্ধনের অনুরোধ গ্রহণ করা হয়েছে। ইমেইল নিশ্চিতকরণ লিংক এলে সেটি খুলুন। আগে থেকেই account থাকলে নতুন account তৈরি হবে না—লগইন করুন।','success'));
     form.reset();
   }
 }
 async function signInWithUsername(form) {
   if (!db) return;
   const data = new FormData(form);
-  const username = normalizeUsername(data.get('username'));
+  const identifier = String(data.get('username') || '').trim().toLowerCase();
   const password = String(data.get('password') || '');
-  if (!validUsername(username) || !password) { toast('ইউজারনেম ও পাসওয়ার্ড সঠিকভাবে লিখুন।'); return; }
+  const isEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(identifier);
+  if ((!isEmail && !validUsername(identifier)) || !password) { toast('সঠিক ইউজারনেম অথবা ইমেইল এবং পাসওয়ার্ড লিখুন।'); return; }
 
   const result = await db.functions.invoke('username-login', {
-    body: { username, password }
+    body: { username: identifier, password }
   });
   const session = result.data;
   if (result.error || !session || !session.access_token || !session.refresh_token) {
-    toast((session && session.error) || 'ইউজারনেম বা পাসওয়ার্ড সঠিক নয়। ইমেইল নিশ্চিত করা হয়েছে কি না দেখুন।');
+    toast((session && session.error) || 'ইউজারনেম/ইমেইল অথবা পাসওয়ার্ড সঠিক নয়। নতুন account হলে আগে ইমেইল নিশ্চিত করুন।');
     return;
   }
 
