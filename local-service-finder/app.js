@@ -607,7 +607,7 @@ async function saveProvider(form) {
     const parsedSkills = JSON.parse(String(d.get('skills') || '[]'));
     skills = Array.isArray(parsedSkills) ? parsedSkills.map(x=>String(x).trim()).filter(Boolean) : [];
   } catch {
-    skills = String(d.get('skills') || '').split(/[,،;\\r\\n]+/).map(x=>x.trim()).filter(Boolean);
+    skills = String(d.get('skills') || '').split(/[,،;\r\n]+/).map(x=>x.trim()).filter(Boolean);
   }
   skills = Array.from(new Map(skills.map(x=>[x.toLowerCase(),x])).values());
   if (!skills.length) { toast('কমপক্ষে একটি দক্ষতা যোগ করুন।'); return; }
@@ -740,7 +740,7 @@ function bindForms() {
       });
     };
     const addSkill = raw => {
-      const skill=String(raw || '').trim().replace(/\\s+/g,' ');
+      const skill=String(raw || '').trim().replace(/\s+/g,' ');
       if (skill.length < 2 || skill.length > 60) { toast('দক্ষতার নাম ২–৬০ অক্ষরের মধ্যে দিন।'); return; }
       const list=readSkills();
       if (list.some(item=>item.toLowerCase()===skill.toLowerCase())) { toast('এই দক্ষতাটি আগে যোগ করা হয়েছে।'); return; }
