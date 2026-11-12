@@ -535,7 +535,7 @@ async function signInWithUsername(form) {
   const data = new FormData(form);
   const identifier = String(data.get('username') || '').trim().toLowerCase();
   const password = String(data.get('password') || '');
-  const isEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(identifier);
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
   if ((!isEmail && !validUsername(identifier)) || !password) { toast('সঠিক ইউজারনেম অথবা ইমেইল এবং পাসওয়ার্ড লিখুন।'); return; }
 
   const result = await db.functions.invoke('username-login', {
